@@ -1,0 +1,310 @@
+networks:
+  social-network:
+    external: true
+    name: "social-network"
+  redis:
+    driver: bridge
+
+volumes:
+  users-db-data:
+  posts-db-data:
+  chat-db-data:
+  notifications-db-data:
+  media-db-data:
+  minio_data:
+  victoria-logs-data:
+  alloy-data:
+  grafana-storage: {}
+
+services:
+  users-db:
+    image: postgres:16
+    container_name: users-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: social_users
+    ports:
+      - "5433:5432"
+    volumes:
+      - users-db-data:/var/lib/postgresql/data
+    networks: 
+      - social-network
+
+  posts-db:
+    image: postgres:16
+    container_name: posts-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: social_posts
+    ports:
+      - "5434:5432"
+    volumes:
+      - posts-db-data:/var/lib/postgresql/data
+    networks: 
+      - social-network
+
+  chat-db:
+    image: postgres:16
+    container_name: chat-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: social_chat
+    ports:
+      - "5435:5432"
+    volumes:
+      - chat-db-data:/var/lib/postgresql/data
+    networks: 
+      - social-network
+
+  notifications-db:
+    image: postgres:16
+    container_name: notifications-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: social_notifications
+    ports:
+      - "5436:5432"
+    volumes:
+      - notifications-db-data:/var/lib/postgresql/data
+    networks: 
+      - social-network
+
+  media-db:
+    image: postgres:16
+    container_name: media-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: social_media
+    ports:
+      - "5437:5432"
+    volumes:
+      - media-db-data:/var/lib/postgresql/data
+    networks: 
+      - social-network
+
+  redis-master:
+    image: redis:8.4.0-alpine
+    command:
+      [
+        "redis-server",
+        "--bind", "0.0.0.0",
+        "--port", "6379",
+        "--protected-mode", "no",
+        "--save", "",
+        "--replica-announce-ip", "127.0.0.1",
+        "--replica-announce-port", "6379"
+      ]
+    ports:
+      - "6379:6379"
+    networks:
+      - social-network
+      - redis
+
+  sentinel-1:
+    image: redis:8.4.0-alpine
+    command: >
+      sh -c "
+      echo 'port 26379' > /tmp/sentinel.conf &&
+      echo 'bind 0.0.0.0' >> /tmp/sentinel.conf &&
+      echo 'sentinel resolve-hostnames yes' >> /tmp/sentinel.conf &&
+      echo 'sentinel announce-ip 127.0.0.1' >> /tmp/sentinel.conf &&
+      echo 'sentinel announce-port 26379' >> /tmp/sentinel.conf &&
+      echo 'sentinel monitor mymaster 127.0.0.1 6379 1' >> /tmp/sentinel.conf &&
+      echo 'sentinel down-after-milliseconds mymaster 5000' >> /tmp/sentinel.conf &&
+      echo 'sentinel failover-timeout mymaster 10000' >> /tmp/sentinel.conf &&
+      echo 'sentinel parallel-syncs mymaster 1' >> /tmp/sentinel.conf &&
+      redis-sentinel /tmp/sentinel.conf
+      "
+    ports:
+      - "26379:26379"
+    networks:
+      - social-network
+      - redis
+
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks: 
+      - social-network
+
+
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # SOCIAL-SPHERE FRONTEND BACKEND: Next.js frontend service, it serves the web application and communicates with the API Gateway
+  # # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  social-sphere:
+    networks:
+      - social-network
+    build:
+      context: ../social-sphere/.
+      dockerfile: Dockerfile
+    container_name: social-sphere
+    ports:
+      - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - NODE_ENV=production
+      - GATEWAY=http://host.docker.internal:8081
+      - LIVE=ws://localhost:8082
+    restart: unless-stopped
+
+  
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # VICTORIA LOGS SERVICE: for log aggregation and storage
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 
+  victoria-logs:
+    networks:
+        - social-network
+    image: victoriametrics/victoria-logs:v1.43.0
+    ports:
+      - "9428:9428"
+    volumes:
+      - victoria-logs-data:/victoria-logs-data
+    command:
+      - -storageDataPath=/victoria-logs-data
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # GRAFANA ALLOY: It collects, processes, and exports telemetry data (traces, metrics, logs) to Victoria Logs, Metrics and Traces
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  alloy:
+    networks:
+      - social-network
+    image: grafana/alloy:latest
+    container_name: alloy
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "12345:12345" # HTTP server (if you want the web API)
+    volumes:
+      - ../backend/services/monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+    command:
+      - "run"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "--storage.path=/var/lib/alloy/data"
+      - "/etc/alloy/config.alloy"
+      
+
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # GRAFANA: visualization and analytics platform for monitoring data
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    networks:
+      - social-network
+    environment:
+      GF_LOG_LEVEL: debug
+      GF_SERVER_ROOT_URL: "http://my.grafana.server/"
+    ports:
+      - "3001:3000"
+    volumes:
+      - ../backend/services/monitoring/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ../backend/services/monitoring/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - grafana-storage:/var/lib/grafana
+    restart: unless-stopped
+  
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # KAFKA: Message streaming platform for reliably pushing notifications to the notifications service
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  kafka:
+    networks:
+      - social-network
+    image: apache/kafka-native:4.1.1
+    container_name: kafka
+    ports:
+      - "9092:9092"      # internal Docker
+      - "29092:29092"    # external host
+    environment:
+      # Kafka listeners
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://:29092,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092,CONTROLLER://kafka:29093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+
+      # Node / controller configuration
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+
+      # Cluster and replication
+      CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+
+    volumes:
+      - ../backend/services/kafka/config:/mnt/shared/config
+
+
+
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # NATS: Lightweight, high-performance messaging system for inter-service communication. Used to find the live service replica that contains the users websocket
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  nats:
+    image: nats
+    ports:
+      - "8222:8222" #monitoring
+      - "4222:4222" #for clients
+    command: "--cluster_name NATS --cluster nats://0.0.0.0:6222 --http_port 8222 "
+    networks: ["social-network"]
+  nats-1:
+    image: nats
+    command: "--cluster_name NATS --cluster nats://0.0.0.0:6222 --routes=nats://ruser:T0pS3cr3t@nats:6222"
+    networks: ["social-network"]
+    depends_on: ["nats"]
+    ports:
+      - "8223:8222" #monitoring
+      - "4223:4222" #for clients
+  nats-2:
+    image: nats
+    command: "--cluster_name NATS --cluster nats://0.0.0.0:6222 --routes=nats://ruser:T0pS3cr3t@nats:6222"
+    networks: ["social-network"]
+    depends_on: ["nats"]
+    ports:
+      - "8224:8222" #monitoring
+      - "4224:4222" #for clients
+

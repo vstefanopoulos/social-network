@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: redis
+  labels:
+    stage: config
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    port 6379
+    requirepass admin
+    masterauth admin
+    protected-mode no
+    save ""
+    appendonly no

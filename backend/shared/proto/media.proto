@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+package media;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "social-network/shared/gen-go/media;media";
+
+// Describes the type of file
+// original, thumb, small, medium, large, original
+enum FileVariant {
+  IMG_VARIANT_UNSPECIFIED = 0; // Default unspecified variant
+  THUMBNAIL = 1; // Thumbnail size variant
+  SMALL = 2; // Small size variant
+  MEDIUM = 3; // Medium size variant
+  LARGE = 4; // Large size variant
+  ORIGINAL = 5; // Original size variant
+}
+
+// Describes file visibility
+// private, public
+enum FileVisibility {
+  FILE_VISIBILITY_UNSPECIFIED = 0; // Default unspecified visibility
+  PRIVATE = 1; // Private file visibility
+  PUBLIC = 2; // Public file visibility
+}
+
+// Describes the file upload status:
+// pending, processing, complete, failed
+enum UploadStatus {
+  UPLOAD_STATUS_UNSPECIFIED = 0;
+  UPLOAD_STATUS_PENDING = 1;
+  UPLOAD_STATUS_PROCESSING = 2;
+  UPLOAD_STATUS_COMPLETE = 3;
+  UPLOAD_STATUS_FAILED = 4;
+}
+
+// Request message for uploading an image
+message UploadImageRequest {
+  string filename = 1; // Metadata of the file to upload
+  string mime_type = 2;
+  int64 size_bytes = 3;
+  FileVisibility visibility = 4;
+  int64 expiration_seconds = 5; // Expiration time for the upload URL in seconds
+  repeated FileVariant variants = 6; // List of image variants to generate
+}
+
+// Response message for uploading an image
+message UploadImageResponse {
+  int64 file_id = 1; // Unique identifier of the uploaded file
+  string upload_url = 2; // Pre-signed URL for uploading the file
+}
+
+// Request message for retrieving an image
+message GetImageRequest {
+  int64 image_id = 1; // Unique identifier of the image
+  FileVariant variant = 2; // Desired variant of the image
+}
+
+// Response message for retrieving an image
+message GetImageResponse {
+  string download_url = 1; // Pre-signed URL for downloading the image
+}
+
+// Request message for validating an upload
+message ValidateUploadRequest {
+  int64 file_id = 1; // Metadata of the upload to validate
+  bool return_url = 2; // Request download url after validation
+}
+
+// Response on validate upload containing download url only if requested
+message ValidateUploadResponse {
+  string download_url = 1; // Pre-signed URL for downloading the image
+}
+
+message ImageIds {
+  repeated int64 img_ids =1;
+}
+
+// Request with an array of file ids and the prefered variant.
+// Variant is common for all ids. If a variant is not present
+// returns the original.
+message GetImagesRequest {
+  ImageIds img_ids = 1;
+  FileVariant variant =2;
+}
+
+// Pair of file id and upload status representing the files that
+// not marked as completed.
+message FailedId {
+  int64 file_id = 1;
+  UploadStatus status = 2;
+}
+
+// map of image ids and dowload urls and array of failed ids.
+message GetImagesResponse {
+  // map[ct.Id]string
+  map<int64, string> download_urls = 1;
+
+  // []FailedId
+  repeated FailedId failed_ids = 2;
+}
+
+
+
+// Service definition for media operations
+service MediaService {
+  // Provides a fileId and an upload url targeted on bucket Originals defined on configs.
+  // Creates all variant entries provided in []variants for workers to later
+  // create asynchronously the compressed files.
+  // Before accessing the upload a success response from ValidateUpload
+  // is nessecary. Validation expiration is set to 24 hours.
+  rpc UploadImage (UploadImageRequest) returns (UploadImageResponse);
+
+  // Returns an image download URL for the requested imageId and Variant.
+  // If the variant is not available it falls back to the original file.
+  rpc GetImage (GetImageRequest) returns (GetImageResponse);
+
+  // Returns a id to download url pairs for 
+  // an array of file ids and the prefered variant.
+  // Variant is common for all ids. If a variant is not present
+  // returns url for the original format.
+  // GetImages does not accept original variants in batch request
+  rpc GetImages (GetImagesRequest) returns (GetImagesResponse);
+
+  // This is a call to validate an already uploaded file. 
+  // Unvalidated files expire in 24 hours and are automatically 
+  // deleted from file service. If requested returns a download url.
+  rpc ValidateUpload (ValidateUploadRequest) returns (ValidateUploadResponse);
+}
+
+

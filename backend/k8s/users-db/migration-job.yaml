@@ -1,0 +1,34 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: users-migrate
+  namespace: users
+  labels:
+    stage: migration
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: social-network/users:dev
+          imagePullPolicy: Never
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: users-db-app
+                  key: uri
+            - name: MIGRATE_PATH
+              value: /app/migrations
+          command:
+            - sh
+            - -c
+            - |
+              until psql "$DATABASE_URL" -c "select pg_is_in_recovery()" | grep f; do
+                sleep 2
+              done
+              ./migrate
+              echo "Running seeds..."
+              ./seeds/seed.sh

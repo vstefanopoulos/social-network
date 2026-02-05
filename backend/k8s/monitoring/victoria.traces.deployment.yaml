@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: victoria-traces
+  namespace: monitoring
+  labels:
+    app: victoria-traces
+    stage: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: victoria-traces
+  template:
+    metadata:
+      labels:
+        app: victoria-traces
+    spec:
+      containers:
+        - name: victoria-traces
+          image: victoriametrics/victoria-traces:latest
+          args:
+            - -storageDataPath=/victoria-traces-data
+          ports:
+            - containerPort: 10428
+          volumeMounts:
+            - name: victoria-traces-data
+              mountPath: /victoria-traces-data
+      volumes:
+        - name: victoria-traces-data
+          persistentVolumeClaim:
+            claimName: victoria-traces-pvc

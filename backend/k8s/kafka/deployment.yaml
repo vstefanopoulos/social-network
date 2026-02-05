@@ -1,0 +1,25 @@
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: kafka
+  namespace: kafka
+  labels:
+    # Check if this can happen on node creation or should be run after on app
+    stage: app
+spec:
+  kafka:
+    version: 4.0.0
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+    config:
+      num.partitions: 10
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+    metadataVersion: "3.6"
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}

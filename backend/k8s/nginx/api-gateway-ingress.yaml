@@ -1,0 +1,21 @@
+
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: api-gateway-ingress
+#   namespace: ingress-nginx
+#   labels:
+#     stage: ingress
+# spec:
+#   ingressClassName: nginx
+#   rules:
+#     - host: localhost
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: api-gateway
+#                 port:
+#                   number: 8080

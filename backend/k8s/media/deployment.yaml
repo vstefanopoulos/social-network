@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: media
+  namespace: media
+  labels:
+    stage: app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: media
+  template:
+    metadata:
+      labels:
+        app: media
+    spec:
+      containers:
+        - name: media
+          image: social-network/media:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 50051
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: media-db-app
+                  key: uri
+            - name: ENC_KEY
+              value: social-network-secret-key
+            - name: MINIO_ENDPOINT
+              value: "minio.storage.svc.cluster.local:9000"
+            - name: MINIO_PUBLIC_ENDPOINT
+              value: localhost:9000
+            - name: MINIO_ACCESS_KEY
+              value: minio
+            - name: MINIO_SECRET_KEY
+              value: minio123
+            - name: GRPC_SERVER_PORT
+              value: :50051
+            - name: SENTINEL_ADDRS
+              value: sentinel-0.redis-sentinel.redis.svc.cluster.local:26379,sentinel-1.redis-sentinel.redis.svc.cluster.local:26379,sentinel-2.redis-sentinel.redis.svc.cluster.local:26379
+            - name: REDIS_MASTER_SET
+              value: "mymaster"
+            - name: TELEMETRY_COLLECTOR_ADDR
+              value: "localhost:4317"
+
+            - name: USERS_GRPC_ADDR
+              value: "users.users.svc.cluster.local:50051"
+            - name: POSTS_GRPC_ADDR
+              value: "posts.posts.svc.cluster.local:50051"
+            - name: CHAT_GRPC_ADDR
+              value: "chat.chat.svc.cluster.local:50051"
+            - name: NOTIFICATIONS_GRPC_ADDR
+              value: "notifications.notifications.svc.cluster.local:50051"
+            - name: MEDIA_GRPC_ADDR
+              value: "media.media.svc.cluster.local:50051"
+
+            - name: SHUTDOWN_TIMEOUT_SECONDS
+              value: "5"
+            - name: ENABLE_DEBUG_LOGS
+              value: "true"
+            - name: ENABLE_SIMPLE_PRINT
+              value: "true"
+            - name: KAFKA_BROKERS
+              value: "kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+            - name: NATS_CLUSTER
+              value: "nats://ruser:T0pS3cr3t@nats-client.messaging.svc.cluster.local:4222"
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "alloy.monitoring.svc.cluster.local:4317"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.name=media,service.namespace=social-network,deployment.environment=dev"
+

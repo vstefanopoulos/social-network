@@ -1,0 +1,1 @@
+This folder is a not needed. It exists for consistency. VictoriaLogs doesn't need to be built, the docker compose file just uses an existing image with cli flags. Folder might be useful later for configs.

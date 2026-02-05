@@ -1,0 +1,26 @@
+"use server";
+
+import { serverApiRequest } from "@/lib/server-api";
+
+export async function editEvent({id , data}) {
+    try {
+        const url = `/events/${id}`;
+        const apiResp = await serverApiRequest(url, {
+            method: "POST",
+            body: JSON.stringify(data),
+            headers: {
+                "Content-Type": "application/json"
+            }
+        });
+
+        if (!apiResp.ok) {
+            return {success: false, status: apiResp.status, error: apiResp.message};
+        }
+
+        return { success: true, data: apiResp.data };
+
+    } catch (error) {
+        console.error("Edit Event Action Error:", error);
+        return { success: false, error: error.message };
+    }
+}

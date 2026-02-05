@@ -1,0 +1,474 @@
+syntax = "proto3";
+
+package users;
+
+option go_package = "social-network/shared/gen-go/users;users";
+
+import "common.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+// UserService covers auth, follow, group, and profile operations.
+service UserService {
+  // Registers a new account and returns userId and Username.
+  // Returns already exists if email is already in the database.
+  rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
+
+  // Authenticates by username/email identifier and hashed password.
+  // Avoid using username as it's not unique, only email is.
+  // Returns basic user info (id, username, avatar url).
+  // Calls users and media service for user info and avatar url.
+  // Returns invalid argument if identifier and password don't return any rows.
+  rpc LoginUser (LoginRequest) returns (common.User);
+
+  // Updates a user's password after verifying the current password.
+  // Returns permission denied if given old password doesn't match the one in the db.
+  rpc UpdateUserPassword (UpdatePasswordRequest) returns (google.protobuf.Empty);
+
+  // Updates the account email address.
+  rpc UpdateUserEmail (UpdateEmailRequest) returns (google.protobuf.Empty);
+
+  // Returns followers of a user with pagination, ordered by most recent follow first.
+  // Calls users and media service for user info and avatar url.
+  rpc GetFollowersPaginated (Pagination) returns (common.ListUsers);
+
+  // Returns accounts the user is following with pagination, ordered my most recent follow first.
+  // Calls users and media service for user info and avatar url.
+  rpc GetFollowingPaginated (Pagination) returns (common.ListUsers);
+
+  // Follows a target user if profile is public, or creates a pending request for private profiles.
+  // Returns invalid argument if user tries to follow self, not found if target user doesn't exist or isn't marked active.
+  // Returns two mutually exclusive booleans, IsPending and ViewerIsFollowing, to show whether the follow was pending or completed.
+  rpc FollowUser (FollowUserRequest) returns (FollowUserResponse);
+
+  // Unfollows a target user or cancels a pending follow request.
+  rpc UnFollowUser (FollowUserRequest) returns (google.protobuf.Empty);
+
+  // Accepts or rejects a pending follow request.
+  rpc HandleFollowRequest (HandleFollowRequestRequest) returns (google.protobuf.Empty);
+
+  // Returns ids that the user is following.
+  rpc GetFollowingIds (google.protobuf.Int64Value) returns (common.UserIds);
+
+  // Returns a ranked list of user follow suggestions for the given user, based on
+  // second-degree follows (people followed by users you follow) and shared group
+  // memberships. Suggestions are weighted by interaction type, exclude the user
+  // themself and users already followed, and return the top results with slight
+  // randomization to avoid deterministic ordering.
+  rpc GetFollowSuggestions (google.protobuf.Int64Value) returns (common.ListUsers);
+
+  // Returns whether follower_id currently follows target_user_id.
+  rpc IsFollowing (IsFollowingRequest) returns (google.protobuf.BoolValue);
+
+  // Returns two booleans indicating whether follower_id follows target_user_id and vice versa.
+  rpc AreFollowingEachOther (FollowUserRequest) returns (AreFollowingEachOtherResponse);
+
+  // Returns all available groups paginated, ordered by most members first.
+  // Includes owner id, members count, and requester's group role if any (member, owner, pending)
+  // Calls media service for image urls
+  rpc GetAllGroupsPaginated (Pagination) returns (GroupArr);
+
+  // Returns groups the user belongs to with pagination, ordered by latest joined first
+  // Includes owner id, members count, and requester's group role if any (member, owner, pending)
+  // Calls media service for image urls
+  rpc GetUserGroupsPaginated (Pagination) returns (GroupArr);
+
+  // Returns details for a single group.
+  // Includes owner id, members count, and requester's group role if any (member, owner, pending)
+  // Calls media service for image urls.
+  rpc GetGroupInfo (GeneralGroupRequest) returns (Group);
+
+  // Returns only the basic group info (owner id, title, description, image id)
+  rpc GetGroupBasicInfo(IdReq) returns (Group);
+
+  // Returns members of a group with pagination, ordered by latest joined first
+  // Returns permission denied if requester is not a group member.
+  // Calls users and media service for user info and avatar urls.
+  rpc GetGroupMembers (GroupMembersRequest) returns (GroupUserArr);
+
+  // Returns all member ids of a given group
+  rpc GetAllGroupMemberIds (IdReq) returns (Ids);
+
+  //Returns all pending group requests with user information for group owner.
+  //Includes pagination, results are sorted by ascending join request date
+  //Returns permission denied if requester is not the group owner.
+  // Calls users and media service for user info and avatar urls.
+  rpc GetPendingGroupJoinRequests (GroupMembersRequest) returns (common.ListUsers);
+
+  //Returns the total count of all pending group requests for group owner.
+  //Returns permission denied if requester is not the group owner.
+  rpc GetPendingGroupJoinRequestsCount (GeneralGroupRequest) returns (CountResp);
+
+  //Returns paginated user's followers who have not yet been invited to join the group.
+  //Results are sorted by descending follow date.
+  //Returns permission denied if requester is not a group member.
+  // Calls users and media service for user info and avatar urls.
+  rpc GetFollowersNotInvitedToGroup (GroupMembersRequest) returns (common.ListUsers);
+
+  // Searches active groups by title and description using substring and fuzzy
+  // matching, ranks results by relevance, and annotates whether the requesting
+  // user is a member or owner. Results are ordered by score and popularity and
+  // support pagination.
+  // Score is computed from the search query’s similarity to a group’s title and
+  // description: for queries of length 3 or more, fuzzy similarity is used with
+  // higher weight on title matches; for shorter queries, simple substring matches
+  // are scored instead. Popularity is measured by the group’s members_count, with
+  // groups the user already belongs to ranked ahead of others.
+  rpc SearchGroups (GroupSearchRequest) returns (GroupArr);
+
+  // Invites a list of users to join a group.
+  // Returns permission denied if inviter is not a group member.
+  // If invite already exists it's update to "pending".
+  rpc InviteToGroup (InviteToGroupRequest) returns (google.protobuf.Empty);
+
+  // Checks if the requester is a member of the given group.
+  // The onwer is also treated as a member.
+  rpc IsGroupMember (GeneralGroupRequest) returns (google.protobuf.BoolValue);
+
+  // Creates a join request for the group.
+  // If the request already exists it updates to "pending".
+  rpc RequestJoinGroup (GroupJoinRequest) returns (google.protobuf.Empty);
+
+  // Cancels a request to join the group.
+  rpc CancelJoinGroupRequest(GroupJoinRequest) returns (google.protobuf.Empty);
+
+  // Accepts or declines a received group invite.
+  rpc RespondToGroupInvite (HandleGroupInviteRequest) returns (google.protobuf.Empty);
+
+  // Approves or rejects a user's join request.
+  // Returns permission declined if user handling the request is not owner of the group.
+  rpc HandleGroupJoinRequest (HandleJoinRequest) returns (google.protobuf.Empty);
+
+  // Removes user as member of the specified group.
+  // Returns permission denied if user wasn't a member of the group.
+  rpc LeaveGroup (GeneralGroupRequest) returns (google.protobuf.Empty);
+
+  // Removes a group member from the group.
+  // Returns permission denied if requester is not the owner of the group.
+  // Owner cannot be removed.
+  rpc RemoveFromGroup (RemoveFromGroupRequest) returns (google.protobuf.Empty);
+
+  // Creates a new group with requester as owner and returns its id.
+  rpc CreateGroup (CreateGroupRequest) returns (google.protobuf.Int64Value);
+
+  // Updates group info (title, description, image).
+  // Returns permission denied if requester is not group owner.
+  // All fields must be included even if they remain unchanged or they will be deleted.
+  rpc UpdateGroup (UpdateGroupRequest) returns (google.protobuf.Empty);
+
+  // Retrieves basic public info for a user (id, username, avatar id).
+  // Does not call media service for avatar url
+  // Returns no rows for id not found.
+  rpc GetBasicUserInfo (google.protobuf.Int64Value) returns (common.User);
+
+  // Retrieves basic info for multiple users (id, username, avatar id).
+  // Does not call media service for avatar url
+  // Returns any users found on db, or no rows if no ids are found. Missing users are silently skipped.
+  rpc GetBatchBasicUserInfo (common.UserIds) returns (common.ListUsers);
+
+  // Returns the full profile
+  // Includes following, followers and group counts.
+  // Also includes viewer specific info: whether it's own profile and whether the viewer is following or has pending follow request.
+  // Calls media service for avatar url.
+  rpc GetUserProfile (GetUserProfileRequest) returns (UserProfileResponse);
+
+  // Searches active users by username, first name, or last name using prefix
+  // matching for short queries and fuzzy similarity for longer queries. Results
+  // are ordered by relevance and limited to at most the requested limit,
+  // with username-based alphabetical ordering used to ensure consistent ordering
+  // when relevance scores are equal.
+  rpc SearchUsers (UserSearchRequest) returns (common.ListUsers);
+
+  // Updates profile fields for the given user and returns it.
+  // All fields must be included even if unchanged or they will be deleted.
+  // Calls media service for avatar url.
+  // Sets/updates cached basic user info to avoid outdated data.
+  rpc UpdateUserProfile (UpdateProfileRequest) returns (UserProfileResponse);
+
+  // Toggles public/private profile visibility (public/private).
+  rpc UpdateProfilePrivacy (UpdateProfilePrivacyRequest) returns (google.protobuf.Empty);
+
+  // Resets failed or missing avatar ids to 0
+  rpc RemoveImages (FailedImageIds) returns (google.protobuf.Empty);
+}
+
+// GENERAL
+
+//Generic request message with simple id
+message IdReq{
+  int64 id = 1;
+}
+
+//Generic response message with int64 (can be id or count)
+message CountResp{
+  int64 id = 1;
+}
+
+//Generic response message with int64 ids
+message Ids{
+  repeated int64 ids=1;
+}
+
+//Request message for failed or missing image ids
+message FailedImageIds {
+  repeated int64 img_ids = 1;
+}
+
+// PROFILE
+
+//Response message describing a user's full profile
+//along with viewer specific information
+message UserProfileResponse {
+  int64                     user_id                           = 1;
+  string                    username                          = 2;
+  string                    first_name                        = 3;
+  string                    last_name                         = 4;
+  google.protobuf.Timestamp date_of_birth                     = 5;
+  int64                     avatar                            = 6; //can be 0 if no avatar set
+  string                    avatar_url                        = 7; //can be empty string if avatar=0
+  string                    about                             = 8; //can be empty string
+  bool                      public                            = 9; //public allows automatic follows, not public requires a follow request
+  google.protobuf.Timestamp created_at                        = 10;
+  string                    email                             = 11;
+  int64                     followers_count                   = 12;
+  int64                     following_count                   = 13;
+  int64                     groups_count                      = 14; //includes groups where user is owner
+  int64                     owned_groups_count                = 15;
+  bool                      viewer_is_following               = 16; //the viewer is already following the user
+  bool                      own_profile                       = 17; //the profile belongs to the viewer
+  bool                      is_pending                        = 18; //the viewer has a pending follow request to the user
+  bool                      follow_request_from_profile_owner = 19; // the profile owner has a pending follow request to the viewer
+}
+
+// REGISTER USER
+
+//Request message for user registration
+message RegisterUserRequest {
+  string                    username      = 1; //can be empty string
+  string                    first_name    = 2;
+  string                    last_name     = 3;
+  google.protobuf.Timestamp date_of_birth = 4;
+  int64                     avatar        = 5; //can be 0 if no avatar is set
+  string                    about         = 6; //can be empty string
+  bool                      public        = 7; //public allows automatic follows, not public requires a follow request
+  string                    email         = 8;
+  string                    password      = 9; //already hashed
+}
+
+//Response message for successful registration
+message RegisterUserResponse {
+  int64  user_id  = 1;
+  string username = 2; //generated automatically if not given by user
+}
+
+// LOGIN
+
+//Request message for user login
+message LoginRequest {
+  string identifier = 1; //email or username (avoid username as it's not unique)
+  string password   = 2; //already hashed
+}
+
+// UPDATE PASSWORD
+
+//Request message for updating user password
+message UpdatePasswordRequest {
+  int64  user_id      = 1;
+  string old_password = 2; //already hashed
+  string new_password = 3; //already hashed
+}
+
+// UPDATE USER EMAIL
+
+//Request message for updating user email
+message UpdateEmailRequest {
+  int64  user_id = 1;
+  string email   = 2;
+}
+
+// GET FOLLOWERS
+
+//Generic request message for paginated info
+message Pagination {
+  int64 user_id = 1;
+  int32 limit   = 2;
+  int32 offset  = 3;
+}
+
+// FOLLOW USER
+
+//Request message for following a target user
+message FollowUserRequest {
+  int64 follower_id    = 1;
+  int64 target_user_id = 2;
+}
+
+//Response message for following a target user
+message FollowUserResponse {
+  bool is_pending          = 1; //a pending follow request was created
+  bool viewer_is_following = 2; //follow was successful immediately (profile was public)
+}
+
+//Request message for handing a follow request
+message HandleFollowRequestRequest {
+  int64 user_id      = 1;
+  int64 requester_id = 2;
+  bool  accept       = 3; //true for accepting, false for rejecting
+}
+
+//Request message to check if user is following target user
+message IsFollowingRequest {
+  int64 follower_id    = 1;
+  int64 target_user_id = 2;
+}
+
+//Response message for checking if two users follow each other
+message AreFollowingEachOtherResponse{
+  bool follower_follows_target = 1;
+  bool target_follows_follower = 2;
+}
+
+// GROUPS
+
+//Response message describing a group
+//including viewer specific information in relation to group
+message Group {
+  int64  group_id          = 1;
+  int64  group_owner_id    = 2;
+  string group_title       = 3;
+  string group_description = 4;
+  int64  group_image_id    = 5;
+  string group_image_url   = 6;
+  int32  members_count     = 7;
+  bool   is_member         = 8;
+  bool   is_owner          = 9;
+  bool   pending_request   = 10;
+  bool   pending_invite    = 11;
+}
+
+//Response message including multiple groups
+message GroupArr {
+  repeated Group group_arr = 1;
+}
+
+//Generic request message pertaining to groups
+message GeneralGroupRequest {
+  int64 group_id = 1;
+  int64 user_id  = 2;
+}
+
+//Request message for getting paginated members of a group
+message GroupMembersRequest {
+  int64 user_id  = 1;
+  int64 group_id = 2;
+  int32 limit    = 3;
+  int32 offset   = 4;
+}
+
+//Response message describing a group member
+message GroupUser {
+  int64  user_id    = 1;
+  string username   = 2;
+  int64  avatar     = 3;
+  string avatar_url = 4;
+  string group_role = 5; //owner or member
+}
+
+//Response message describing multiple group members
+message GroupUserArr {
+  repeated GroupUser group_user_arr = 1;
+}
+
+//Request message for searching for groups
+message GroupSearchRequest {
+  string search_term = 1;
+  int64  user_id     = 2;
+  int32  limit       = 3;
+  int32  offset      = 4;
+}
+
+//Request message for inviting users to a group
+message InviteToGroupRequest {
+  int64          inviter_id  = 1;
+  common.UserIds invited_ids = 2;
+  int64          group_id    = 3;
+}
+
+//Request message for requesting to join a group
+message GroupJoinRequest {
+  int64 group_id     = 1;
+  int64 requester_id = 2;
+}
+
+//Request message for accepting or declining an invite to a group
+message HandleGroupInviteRequest {
+  int64 group_id   = 1;
+  int64 invited_id = 2;
+  bool  accepted   = 3; // true for accepting, false for declining
+}
+
+//Request message for accepting or rejecting a group join request
+message HandleJoinRequest {
+  int64 group_id     = 1;
+  int64 requester_id = 2; //the user who sent the join request
+  int64 owner_id     = 3; //the user handling the request (must be owner)
+  bool  accepted     = 4; //true for accepting, false for rejecting
+}
+
+//Request for removing user from group (can be used for self)
+message RemoveFromGroupRequest {
+  int64 group_id  = 1;
+  int64 member_id = 2;
+  int64 owner_id  = 3;
+}
+
+//Request message for creating a group
+message CreateGroupRequest {
+  int64  owner_id          = 1;
+  string group_title       = 2;
+  string group_description = 3;
+  int64  group_image_id    = 4; //can be 0 if no image
+}
+
+//Request message for updating a group's info
+message UpdateGroupRequest{
+  int64  requester_id      = 1;
+  int64  group_id          = 2;
+  string group_title       = 3;
+  string group_description = 4;
+  int64  group_image_id    = 5; //can be 0 if no image
+  bool   delete_image      = 6;
+}
+
+// GET USER PROFILE
+
+//Request message for retrieving a user's profile
+message GetUserProfileRequest {
+  int64 user_id      = 1;
+  int64 requester_id = 2;
+}
+
+//Request message for searching for users
+message UserSearchRequest {
+  string search_term = 1;
+  int32  limit       = 2;
+}
+
+//Request message for updating own profile
+message UpdateProfileRequest {
+  int64                     user_id       = 1;
+  string                    username      = 2;
+  string                    first_name    = 3;
+  string                    last_name     = 4;
+  google.protobuf.Timestamp date_of_birth = 5;
+  int64                     avatar        = 6; //can be 0 if no image
+  string                    about         = 7; //can be empty string
+  bool                      delete_image  = 8;
+}
+
+//Request message for updating own profile privacy
+message UpdateProfilePrivacyRequest {
+  int64 user_id = 1;
+  bool  public  = 2; //public allows automatic follows, not public requires a follow request
+}

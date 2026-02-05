@@ -1,0 +1,14 @@
+version: "2"
+sql:
+  - name: "notifications"
+    engine: "postgresql"
+    schema: "./migrations/*.sql"
+    queries: "./queries/*.sql"
+    gen:
+      go:
+        package: sqlc
+        out: "./sqlc"
+        sql_package: pgx/v5
+        emit_empty_slices: true
+        emit_enum_valid_method: true
+        emit_interface: true

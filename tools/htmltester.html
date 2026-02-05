@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>API Button Panel</title>
+<style>
+    body { font-family: sans-serif; padding: 20px; }
+    .col { display: flex; flex-direction: column; width: 300px; gap: 10px; }
+    button { padding: 10px; }
+    #output { width: 100%; height: 300px; margin-top: 20px; white-space: pre; }
+</style>
+</head>
+<body>
+
+<div class="col">
+
+<button onclick="send('/test','GET')">/test</button>
+
+<button onclick="send('/profile/','GET')">/profile/</button>
+
+<button onclick="send('/login','POST',{
+    identifier:'exampleuser',
+    password:'password123*&^%$'})">/login</button>
+
+<button onclick="send('/register','POST',sendMultipartRegister())">/register</button>
+
+<button onclick="send('/logout','POST')">/logout</button>
+
+<button onclick="send('/auth-status','POST')">/auth-status</button>
+
+<button onclick="send('/public-feed','GET')">/public-feed</button>
+
+<button onclick="send('/groups/create','POST',{group_title:'A',group_description:'B'})">/groups/create</button>
+
+<button onclick="send('/groups/paginated','GET',{limit:10,offset:0})">/groups/paginated</button>
+
+<button onclick="send('/users/follow','POST',{target_user_id:1})">/users/follow</button>
+
+<button onclick="send('/users/followers/paginated','GET',{user_id:1,limit:10,offset:0})">/users/followers/paginated</button>
+
+<button onclick="send('/users/follow-suggestions','GET',{value:1})">/users/follow-suggestions</button>
+
+<button onclick="send('/users/basic-info','GET',{user_id:1})">/users/basic-info</button>
+
+<button onclick="send('/users/basic-info/batch','GET',{values:[1,2,3]})">/users/basic-info/batch</button>
+
+</div>
+
+<textarea id="output"></textarea>
+
+<script>
+async function send(url, method, body) {
+    url = 'http://localhost:8081' + url;
+    const opts = { method, headers: {} };
+    if (method !== 'GET') {
+        opts.headers['Content-Type'] = 'application/json';
+        if (body) opts.body = JSON.stringify(body);
+    } else if (body) {
+        url += '?' + new URLSearchParams(body).toString();
+    }
+
+    try {
+        const res = await fetch(url, opts);
+        const text = await res.text();
+        document.getElementById('output').value = text;
+    } catch (e) {
+        document.getElementById('output').value = 'ERROR: ' + e;
+    }
+}
+
+async function sendMultipartRegister() {
+    const form = new FormData();
+    form.append('username', 'exampleuser2');
+    form.append('first_name', 'Example');
+    form.append('last_name', 'User');
+    form.append('date_of_birth', '2000-01-01');
+    form.append('avatar', new Blob(['/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA='], { type: 'application/octet-stream' }), 'avatar.txt');
+    form.append('about', 'Sample bio');
+    form.append('public', 'true');
+    form.append('email', 'user@example.com');
+    form.append('password', 'password123*&^%$');
+
+    const url = 'http://localhost:8081/register';
+
+    try {
+        const res = await fetch(url, { method: 'POST', body: form });
+        const text = await res.text();
+        document.getElementById('output').value = text;
+    } catch (e) {
+        document.getElementById('output').value = 'ERROR: ' + e;
+    }
+}
+</script>
+
+</body>
+</html>

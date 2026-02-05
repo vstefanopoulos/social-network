@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-config
+  namespace: messaging
+  labels:
+    stage: config
+data:
+  nats.conf: |
+    port: 4222
+
+    authorization {
+      user: ruser
+      password: T0pS3cr3t
+    }
+
+    cluster {
+      name: NATS
+      listen: 0.0.0.0:6222
+
+      authorization {
+        user: ruser
+        password: T0pS3cr3t
+      }
+
+      routes = [
+        nats://ruser:T0pS3cr3t@nats-0.nats:6222
+        nats://ruser:T0pS3cr3t@nats-1.nats:6222
+        nats://ruser:T0pS3cr3t@nats-2.nats:6222
+      ]
+    }

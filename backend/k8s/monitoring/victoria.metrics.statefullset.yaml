@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: victoria-metrics
+  namespace: monitoring
+  labels:
+    stage: monitoring
+spec:
+  serviceName: "victoria-metrics"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: victoria-metrics
+  template:
+    metadata:
+      labels:
+        app: victoria-metrics
+    spec:
+      containers:
+        - name: victoria-metrics
+          image: victoriametrics/victoria-metrics:v1.97.0
+          args:
+            - -storageDataPath=/victoria-metrics-data
+          ports:
+            - containerPort: 8428
+          volumeMounts:
+            - name: victoria-metrics-data
+              mountPath: /victoria-metrics-data
+  volumeClaimTemplates:
+    - metadata:
+        name: victoria-metrics-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

@@ -1,0 +1,13 @@
+RULE 
+<service-name>.<service-namespace>.svc.cluster.local:port
+
+# Nats: nats-client.messaging.svc.cluster.local:4222
+# Chat: chat.chat.svc.cluster.local:50051
+# Gateway: api-gateway.api-gateway.svc.cluster.local:8081
+# Live: live.live.svc.cluster.local:8082
+# Media: media.media.svc.cluster.local:50051
+# Redis: 
+# Storage: minio.storage.svc.cluster.local:9000
+# Notifications: notifications.notifications.svc.cluster.local:50051
+# Posts: posts.posts.svc.cluster.local:50051
+# Users: users.users.svc.cluster.local:50051

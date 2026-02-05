@@ -1,0 +1,75 @@
+# macOs
+.DS_Store
+
+# debug files
+.vscode
+*.bin
+*.exe
+__debug_bin*
+backend/test.jpg
+
+test_output
+downloads
+.idea
+idea
+/.idea
+/idea
+backend/services/post-service
+backend/services/notes_&_logs.txt
+
+
+==== frontend ====
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+social-sphere/node_modules
+social-sphere/.pnp
+social-sphere/.pnp.*
+social-sphere/.yarn/*
+social-sphere/.yarn/patches
+social-sphere/.yarn/plugins
+social-sphere/.yarn/releases
+social-sphere/.yarn/versions
+
+# testing
+social-sphere/coverage
+backend/services/testing/internal/chat_testing/users.json
+
+# next.js
+social-sphere/.next/
+social-sphere/out
+
+# production
+social-sphere/build
+
+# misc
+social-sphere/.DS_Store
+social-sphere/*.pem
+nul
+
+# debug
+social-sphere/npm-debug.log*
+social-sphere/yarn-debug.log*
+social-sphere/yarn-error.log*
+social-sphere/.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+# env files (can opt-in for committing if needed)
+social-sphere/.env
+social-sphere/.env.*
+!social-sphere/.env*.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# light-infra executables
+*.social
+
+#makefile junk
+*.stackdump
+
+.claude/

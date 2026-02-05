@@ -1,0 +1,30 @@
+{
+  "name": "social-sphere",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "emoji-picker-react": "^4.17.1",
+    "lucide-react": "^0.556.0",
+    "motion": "^12.23.26",
+    "next": "^16.0.10",
+    "next-themes": "^0.4.6",
+    "react": "19.2.1",
+    "react-datepicker": "^9.0.0",
+    "react-dom": "19.2.1",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.8",
+    "tailwindcss": "^4"
+  }
+}

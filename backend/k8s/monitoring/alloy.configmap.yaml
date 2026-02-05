@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: monitoring
+  labels:
+    stage: config
+data:
+  config.alloy: |
+    logging {
+      level  = "info"
+      format = "logfmt"
+    }
+
+    otelcol.exporter.otlphttp "victoriaLogs" {
+      client {
+        endpoint = "http://victoria-logs.monitoring.svc.cluster.local:9428/insert/opentelemetry/"
+      }
+    }
+
+    otelcol.exporter.otlphttp "victoriaTraces" {
+      client {
+        endpoint = "http://victoria-traces.monitoring.svc.cluster.local:10428/insert/opentelemetry/"
+      }
+    }
+
+    otelcol.exporter.otlphttp "victoriaMetrics" {
+      client {
+        endpoint = "http://victoria-metrics.monitoring.svc.cluster.local:8428/api/v1/import"
+      }
+    }
+
+    otelcol.processor.batch "default" {
+      output {
+        logs    = [otelcol.exporter.otlphttp.victoriaLogs.input]
+        traces  = [otelcol.exporter.otlphttp.victoriaTraces.input]
+        metrics = [otelcol.exporter.otlphttp.victoriaMetrics.input]
+      }
+    }
+
+    otelcol.processor.memory_limiter "default" {
+      check_interval = "1s"
+      limit          = "512MiB"
+
+      output {
+        logs    = [otelcol.processor.batch.default.input]
+        traces  = [otelcol.processor.batch.default.input]
+        metrics = []
+      }
+    }
+
+    otelcol.receiver.otlp "default" {
+      grpc {
+        endpoint = "0.0.0.0:4317"
+      }
+
+      http {
+        endpoint = "0.0.0.0:4318"
+      }
+
+      output {
+        logs    = [otelcol.processor.memory_limiter.default.input]
+        traces  = [otelcol.processor.memory_limiter.default.input]
+        metrics = []
+      }
+    }
+

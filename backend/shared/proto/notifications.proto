@@ -1,0 +1,570 @@
+syntax = "proto3";
+
+package notifications;
+
+option go_package = "social-network/shared/gen-go/notifications;notifications";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+// NotificationService manages creation, retrieval, and updates of notifications.
+// Current behavior: INVALID_ARGUMENT for zero ids; INTERNAL for all other failures.
+// Desired (not yet implemented): PERMISSION_DENIED for ownership issues; NOT_FOUND for missing notifications/users; UNAUTHENTICATED where auth is required.
+service NotificationService {
+  // Create notifications
+  // Creates a single notification for a user.
+  // Returns Error: INVALID_ARGUMENT when user_id is zero; INTERNAL otherwise. Desired: NOT_FOUND for missing user.
+  rpc CreateNotification (CreateNotificationRequest) returns (Notification);
+
+  // Creates multiple notifications in bulk.
+  // Returns Error: INTERNAL for failures. Desired: INVALID_ARGUMENT per entry, NOT_FOUND for missing users.
+  rpc CreateNotifications (CreateNotificationsRequest) returns (CreateNotificationsResponse);
+
+  // Specific notification creation methods
+  // Creates a follow request notification
+  rpc CreateFollowRequest (CreateFollowRequestRequest) returns (Notification);
+  // Creates a new follower notification
+  rpc CreateNewFollower (CreateNewFollowerRequest) returns (Notification);
+  // Creates a group invite notification
+  rpc CreateGroupInvite (CreateGroupInviteRequest) returns (Notification);
+  // Creates a group invite notification for multiple users
+  rpc CreateGroupInviteForMultipleUsers (CreateGroupInviteForMultipleUsersRequest) returns (CreateGroupInviteForMultipleUsersResponse);
+  // Creates a group join request notification
+  rpc CreateGroupJoinRequest (CreateGroupJoinRequestRequest) returns (Notification);
+  // Creates a new event notification
+  rpc CreateNewEvent (CreateNewEventRequest) returns (Notification);
+  // Creates a new event notification for multiple users
+  rpc CreateNewEventForMultipleUsers (CreateNewEventForMultipleUsersRequest) returns (CreateNewEventForMultipleUsersResponse);
+  // Creates a post like notification
+  rpc CreatePostLike (CreatePostLikeRequest) returns (Notification);
+  // Creates a post comment notification
+  rpc CreatePostComment (CreatePostCommentRequest) returns (Notification);
+  // Creates a mention notification
+  rpc CreateMention (CreateMentionRequest) returns (Notification);
+  // Creates a new message notification
+  rpc CreateNewMessage (CreateNewMessageRequest) returns (Notification);
+  // Creates a new message notification for multiple users
+  rpc CreateNewMessageForMultipleUsers (CreateNewMessageForMultipleUsersRequest) returns (CreateNewMessageForMultipleUsersResponse);
+  // Creates a follow request accepted notification
+  rpc CreateFollowRequestAccepted (CreateFollowRequestAcceptedRequest) returns (Notification);
+  // Creates a follow request rejected notification
+  rpc CreateFollowRequestRejected (CreateFollowRequestRejectedRequest) returns (Notification);
+  // Creates a group invite accepted notification
+  rpc CreateGroupInviteAccepted (CreateGroupInviteAcceptedRequest) returns (Notification);
+  // Creates a group invite rejected notification
+  rpc CreateGroupInviteRejected (CreateGroupInviteRejectedRequest) returns (Notification);
+  // Creates a group join request accepted notification
+  rpc CreateGroupJoinRequestAccepted (CreateGroupJoinRequestAcceptedRequest) returns (Notification);
+  // Creates a group join request rejected notification
+  rpc CreateGroupJoinRequestRejected (CreateGroupJoinRequestRejectedRequest) returns (Notification);
+
+  // Get user notifications
+  // Retrieves a user's notifications with optional filtering.
+  // Returns Error: INVALID_ARGUMENT when user_id is zero; INTERNAL otherwise. Desired: PERMISSION_DENIED/NOT_FOUND as applicable.
+  rpc GetUserNotifications (GetUserNotificationsRequest) returns (GetUserNotificationsResponse);
+
+  // Returns the unread notifications count for a user.
+  // Returns Error: INVALID_ARGUMENT when user_id is zero; INTERNAL otherwise. Desired: NOT_FOUND for missing user.
+  rpc GetUnreadNotificationsCount (google.protobuf.Int64Value) returns (google.protobuf.Int64Value);
+
+  // Update notifications
+  // Marks a single notification as read for the owner.
+  // Returns Error: INVALID_ARGUMENT when ids are zero; INTERNAL otherwise. Desired: NOT_FOUND and PERMISSION_DENIED as applicable.
+  rpc MarkNotificationAsRead (MarkNotificationAsReadRequest) returns (google.protobuf.Empty);
+
+  // Marks a single notification as acted for the owner.
+  // Returns Error: INVALID_ARGUMENT when ids are zero; INTERNAL otherwise. Desired: NOT_FOUND and PERMISSION_DENIED as applicable.
+  rpc MarkNotificationAsActed (MarkNotificationAsActedRequest) returns (google.protobuf.Empty);
+
+  // Marks all notifications as read for the user.
+  // Returns Error: INVALID_ARGUMENT when user_id is zero; INTERNAL otherwise. Desired: NOT_FOUND/PERMISSION_DENIED as applicable.
+  rpc MarkAllAsRead (google.protobuf.Int64Value) returns (google.protobuf.Empty);
+
+  // Deletes a single notification for the owner.
+  // Returns Error: INVALID_ARGUMENT when ids are zero; INTERNAL otherwise. Desired: NOT_FOUND/PERMISSION_DENIED as applicable.
+  rpc DeleteNotification (DeleteNotificationRequest) returns (google.protobuf.Empty);
+
+  // Notification preferences
+  // Retrieves notification preferences for a user.
+  // Returns Error: always returns defaults. Desired: NOT_FOUND/PERMISSION_DENIED when implemented.
+  rpc GetNotificationPreferences (google.protobuf.Int64Value) returns (NotificationPreferences);
+
+  // Updates notification preferences.
+  // Returns Error: always succeeds. Desired: INVALID_ARGUMENT/NOT_FOUND/PERMISSION_DENIED when implemented.
+  rpc UpdateNotificationPreferences (UpdateNotificationPreferencesRequest) returns (google.protobuf.Empty);
+}
+
+// Notification types
+enum NotificationType {
+  NOTIFICATION_TYPE_UNSPECIFIED = 0;
+  NOTIFICATION_TYPE_FOLLOW_REQUEST = 1;
+  NOTIFICATION_TYPE_NEW_FOLLOWER = 2;
+  NOTIFICATION_TYPE_GROUP_INVITE = 3;
+  NOTIFICATION_TYPE_GROUP_JOIN_REQUEST = 4;
+  NOTIFICATION_TYPE_NEW_EVENT = 5;
+  NOTIFICATION_TYPE_POST_LIKE = 6;
+  NOTIFICATION_TYPE_POST_COMMENT = 7;
+  NOTIFICATION_TYPE_MENTION = 8;
+  NOTIFICATION_TYPE_NEW_MESSAGE = 9;
+  NOTIFICATION_TYPE_FOLLOW_REQUEST_ACCEPTED = 10;
+  NOTIFICATION_TYPE_FOLLOW_REQUEST_REJECTED = 11;
+  NOTIFICATION_TYPE_GROUP_INVITE_ACCEPTED = 12;
+  NOTIFICATION_TYPE_GROUP_INVITE_REJECTED = 13;
+  NOTIFICATION_TYPE_GROUP_JOIN_REQUEST_ACCEPTED = 14;
+  NOTIFICATION_TYPE_GROUP_JOIN_REQUEST_REJECTED = 15;
+}
+
+// Notification status
+enum NotificationStatus {
+  NOTIFICATION_STATUS_UNSPECIFIED = 0;
+  NOTIFICATION_STATUS_UNREAD = 1;
+  NOTIFICATION_STATUS_READ = 2;
+  NOTIFICATION_STATUS_DELETED = 3;
+}
+
+// Main notification message
+message Notification {
+  int64 id = 1;
+  int64 user_id = 2; // recipient user id
+  string type = 3;
+  string title = 4;
+  string message = 5;
+  string source_service = 6; // e.g. "users", "posts", "groups"
+  int64 source_entity_id = 7; // id of the entity that triggered the notification
+  bool needs_action = 8; // whether user needs to take action (e.g., accept/decline)
+  bool acted = 9; // whether user has taken action
+  int32 count = 10; // aggregation count
+  map<string, string> payload = 11; // additional data in key-value pairs
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp expires_at = 13;
+  NotificationStatus status = 14;
+}
+
+// Request to create a single notification
+message CreateNotificationRequest {
+  int64 user_id = 1; // recipient
+  NotificationType type = 2;
+  string title = 3;
+  string message = 4;
+  string source_service = 5;
+  int64 source_entity_id = 6;
+  bool needs_action = 7;
+  map<string, string> payload = 8;
+  bool aggregate = 9; // whether to aggregate this notification with existing ones
+}
+
+// Request to create multiple notifications
+message CreateNotificationsRequest {
+  repeated CreateNotificationRequest notifications = 1;
+}
+
+// Response for creating multiple notifications
+message CreateNotificationsResponse {
+  repeated Notification created_notifications = 1;
+}
+
+// Request to create a new event notification for multiple users
+message CreateNewEventForMultipleUsersRequest {
+  repeated int64 user_ids = 1; // recipients
+  int64 event_creator_id=2; //event creator
+  int64 group_id = 3; // id of the group
+  int64 event_id = 4; // id of the event
+  string group_name = 5; // name of the group
+  string event_title = 6; // title of the event
+}
+
+// Response for creating a new event notification for multiple users
+message CreateNewEventForMultipleUsersResponse {
+  repeated Notification created_notifications = 1; // created notifications
+}
+
+// Request to get user notifications
+message GetUserNotificationsRequest {
+  int64 user_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+  repeated NotificationType types = 4; // filter by types
+  bool unread_only = 5; // if true, only return unread notifications
+}
+
+// Response with user notifications
+message GetUserNotificationsResponse {
+  repeated Notification notifications = 1;
+  int32 total_count = 2;
+  int32 unread_count = 3;
+}
+
+// Request to mark notification as read
+message MarkNotificationAsReadRequest {
+  int64 notification_id = 1;
+  int64 user_id = 2;
+}
+
+// Request to mark notification as acted
+message MarkNotificationAsActedRequest {
+  int64 notification_id = 1;
+  int64 user_id = 2;
+}
+
+// Request to delete notification
+message DeleteNotificationRequest {
+  int64 notification_id = 1;
+  int64 user_id = 2;
+}
+
+// Notification preferences
+message NotificationPreferences {
+  int64 user_id = 1;
+  map<string, bool> preferences = 2; // map of notification type to enabled status
+}
+
+message UpdateNotificationPreferencesRequest {
+  int64 user_id = 1;
+  map<string, bool> preferences = 2;
+}
+
+// Specific notification request messages
+// Request to create a follow request notification
+message CreateFollowRequestRequest {
+  int64 target_user_id = 1; // recipient
+  int64 requester_user_id = 2; // user that initiated the follow request
+  string requester_username = 3; // username of the requester
+}
+
+// Request to create a new follower notification
+message CreateNewFollowerRequest {
+  int64 target_user_id = 1; // recipient
+  int64 follower_user_id = 2; // user that started following
+  string follower_username = 3; // username of the follower
+  bool aggregate = 4; // whether to aggregate this notification with existing ones
+}
+
+// Request to create a group invite notification
+message CreateGroupInviteRequest {
+  int64 invited_user_id = 1; // recipient
+  int64 inviter_user_id = 2; // user that sent the invite
+  int64 group_id = 3; // id of the group
+  string group_name = 4; // name of the group
+  string inviter_username = 5; // username of the inviter
+}
+
+// Request to create a group invite notification for multiple users
+message CreateGroupInviteForMultipleUsersRequest {
+  repeated int64 invited_user_ids = 1; // recipients
+  int64 inviter_user_id = 2; // user that sent the invite
+  int64 group_id = 3; // id of the group
+  string group_name = 4; // name of the group
+  string inviter_username = 5; // username of the inviter
+}
+
+// Response for creating a group invite notification for multiple users
+message CreateGroupInviteForMultipleUsersResponse {
+  repeated Notification created_notifications = 1; // created notifications
+}
+
+// Request to create a group join request notification
+message CreateGroupJoinRequestRequest {
+  int64 group_owner_id = 1; // recipient (typically the group owner/admin)
+  int64 requester_user_id = 2; // user that requested to join
+  int64 group_id = 3; // id of the group
+  string group_name = 4; // name of the group
+  string requester_username = 5; // username of the requester
+}
+
+// Request to create a new event notification
+message CreateNewEventRequest {
+  int64 user_id = 1; // recipient
+  int64 event_creator_id=2; //event creator
+  int64 group_id = 3; // id of the group
+  int64 event_id = 4; // id of the event
+  string group_name = 5; // name of the group
+  string event_title = 6; // title of the event
+}
+
+// Request to create a post like notification
+message CreatePostLikeRequest {
+  int64 user_id = 1; // recipient (post owner)
+  int64 liker_user_id = 2; // user that liked the post
+  int64 post_id = 3; // id of the post
+  string liker_username = 4; // username of the liker
+  bool aggregate = 5; // whether to aggregate this notification with existing ones
+}
+
+// Request to create a post comment notification
+message CreatePostCommentRequest {
+  int64 user_id = 1; // recipient (post owner)
+  int64 commenter_user_id = 2; // user that commented
+  int64 post_id = 3; // id of the post
+  string commenter_username = 4; // username of the commenter
+  string comment_content = 5; // content of the comment
+  bool aggregate = 6; // whether to aggregate this notification with existing ones
+}
+
+// Request to create a mention notification
+message CreateMentionRequest {
+  int64 user_id = 1; // recipient (mentioned user)
+  int64 mentioner_user_id = 2; // user that made the mention
+  int64 post_id = 3; // id of the post where mention occurred
+  string mentioner_username = 4; // username of the mentioner
+  string post_content = 5; // content of the post
+  string mention_text = 6; // the actual text that was mentioned
+}
+
+// Request to create a new message notification
+message CreateNewMessageRequest {
+  int64 user_id = 1; // recipient
+  int64 sender_user_id = 2; // user that sent the message
+  int64 chat_id = 3; // id of the chat
+  string sender_username = 4; // username of the sender
+  string message_content = 5; // content of the message
+  bool aggregate = 6; // whether to aggregate this notification with existing ones
+}
+
+// Request to create a new message notification for multiple users
+message CreateNewMessageForMultipleUsersRequest {
+  repeated int64 user_ids = 1; // recipients
+  int64 sender_user_id = 2; // user that sent the message
+  int64 chat_id = 3; // id of the chat
+  string sender_username = 4; // username of the sender
+  string message_content = 5; // content of the message
+  bool aggregate = 6; // whether to aggregate this notification with existing ones
+}
+
+// Response for creating a new message notification for multiple users
+message CreateNewMessageForMultipleUsersResponse {
+  repeated Notification created_notifications = 1; // created notifications
+}
+
+// Request to create a follow request accepted notification
+message CreateFollowRequestAcceptedRequest {
+  int64 requester_user_id = 1; // recipient (original requester)
+  int64 target_user_id = 2; // user that accepted the request
+  string target_username = 3; // username of the target user
+}
+
+// Request to create a follow request rejected notification
+message CreateFollowRequestRejectedRequest {
+  int64 requester_user_id = 1; // recipient (original requester)
+  int64 target_user_id = 2; // user that rejected the request
+  string target_username = 3; // username of the target user
+}
+
+// Request to create a group invite accepted notification
+message CreateGroupInviteAcceptedRequest {
+  int64 inviter_user_id = 1; // recipient (original inviter)
+  int64 invited_user_id = 2; // user that accepted the invite
+  int64 group_id = 3; // id of the group
+  string invited_username = 4; // username of the invited user
+  string group_name = 5; // name of the group
+}
+
+// Request to create a group invite rejected notification
+message CreateGroupInviteRejectedRequest {
+  int64 inviter_user_id = 1; // recipient (original inviter)
+  int64 invited_user_id = 2; // user that rejected the invite
+  int64 group_id = 3; // id of the group
+  string invited_username = 4; // username of the invited user
+  string group_name = 5; // name of the group
+}
+
+// Request to create a group join request accepted notification
+message CreateGroupJoinRequestAcceptedRequest {
+  int64 requester_user_id = 1; // recipient (original requester)
+  int64 group_owner_id = 2; // user that accepted the request (group owner/admin)
+  int64 group_id = 3; // id of the group
+  string group_name = 4; // name of the group
+}
+
+// Request to create a group join request rejected notification
+message CreateGroupJoinRequestRejectedRequest {
+  int64 requester_user_id = 1; // recipient (original requester)
+  int64 group_owner_id = 2; // user that rejected the request (group owner/admin)
+  int64 group_id = 3; // id of the group
+  string group_name = 4; // name of the group
+}
+
+// Event types enum
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  POST_COMMENT_CREATED = 1;
+  POST_LIKED = 2;
+  FOLLOW_REQUEST_CREATED = 3;
+  NEW_FOLLOWER_CREATED = 4;
+  GROUP_INVITE_CREATED = 5;
+  GROUP_JOIN_REQUEST_CREATED = 6;
+  NEW_EVENT_CREATED = 7;
+  MENTION_CREATED = 8;
+  NEW_MESSAGE_CREATED = 9;
+  FOLLOW_REQUEST_ACCEPTED = 10;
+  FOLLOW_REQUEST_REJECTED = 11;
+  GROUP_INVITE_ACCEPTED = 12;
+  GROUP_INVITE_REJECTED = 13;
+  GROUP_JOIN_REQUEST_ACCEPTED = 14;
+  GROUP_JOIN_REQUEST_REJECTED = 15;
+  FOLLOW_REQUEST_CANCELLED = 16;
+  GROUP_JOIN_REQUEST_CANCELLED = 17;
+}
+
+// Specific event payload messages
+message PostCommentCreated {
+  int64 post_creator_id =1;
+  int64 post_id = 2;
+  int64 comment_id = 3;
+  int64 commenter_user_id = 4;
+  string commenter_username = 5;
+  string body = 6;
+  bool aggregate = 7;
+}
+
+message PostLiked {
+  int64 entity_creator_id=1;
+  int64 post_id = 2;
+  int64 liker_user_id = 3;
+  string liker_username = 4;
+  bool aggregate = 5;
+}
+
+message FollowRequestCreated {
+  int64 target_user_id = 1;
+  int64 requester_user_id = 2;
+  string requester_username = 3;
+}
+
+message NewFollowerCreated {
+  int64 target_user_id = 1;
+  int64 follower_user_id = 2;
+  string follower_username = 3;
+  bool aggregate = 4;
+}
+
+message GroupInviteCreated {
+  repeated int64 invited_user_id = 1;
+  int64 inviter_user_id = 2;
+  int64 group_id = 3;
+  string group_name = 4;
+  string inviter_username = 5;
+}
+
+message GroupJoinRequestCreated {
+  int64 group_owner_id = 1;
+  int64 requester_user_id = 2;
+  int64 group_id = 3;
+  string group_name = 4;
+  string requester_username = 5;
+}
+
+message NewEventCreated {
+  repeated int64 user_id = 1;
+  int64 event_creator_id=2;
+  int64 group_id = 3;
+  int64 event_id = 4;
+  string group_name = 5;
+  string event_title = 6;
+}
+
+message MentionCreated {
+  int64 mentioned_user_id = 1;
+  int64 mentioner_user_id = 2;
+  int64 post_id = 3;
+  string mentioner_username = 4;
+  string post_content = 5;
+  string mention_text = 6;
+}
+
+message NewMessageCreated {
+  repeated int64 user_id = 1;
+  int64 sender_user_id = 2;
+  int64 chat_id = 3;
+  string sender_username = 4;
+  string message_content = 5;
+  bool aggregate = 6;
+}
+
+message FollowRequestAccepted {
+  int64 requester_user_id = 1;
+  int64 target_user_id = 2;
+  string target_username = 3;
+}
+
+message FollowRequestRejected {
+  int64 requester_user_id = 1;
+  int64 target_user_id = 2;
+  string target_username = 3;
+}
+
+message GroupInviteAccepted {
+  int64 inviter_user_id = 1;
+  int64 invited_user_id = 2;
+  int64 group_id = 3;
+  string invited_username = 4;
+  string group_name = 5;
+}
+
+message GroupInviteRejected {
+  int64 inviter_user_id = 1;
+  int64 invited_user_id = 2;
+  int64 group_id = 3;
+  string invited_username = 4;
+  string group_name = 5;
+}
+
+message GroupJoinRequestAccepted {
+  int64 requester_user_id = 1;
+  int64 group_owner_id = 2;
+  int64 group_id = 3;
+  string group_name = 4;
+}
+
+message GroupJoinRequestRejected {
+  int64 requester_user_id = 1;
+  int64 group_owner_id = 2;
+  int64 group_id = 3;
+  string group_name = 4;
+}
+
+message FollowRequestCancelled {
+  int64 target_user_id = 1;
+  int64 requester_user_id = 2;
+}
+
+message GroupJoinRequestCancelled {
+  int64 group_owner_id = 1;
+  int64 requester_user_id = 2;
+  int64 group_id = 3;
+}
+
+// Main notification event wrapper
+message NotificationEvent {
+  string event_id = 1;
+  google.protobuf.Timestamp occurred_at = 2;
+  EventType event_type = 3;
+  map<string, string> metadata = 4;
+
+  oneof payload {
+    PostCommentCreated post_comment_created = 10;
+    PostLiked post_liked = 11;
+    FollowRequestCreated follow_request_created = 12;
+    NewFollowerCreated new_follower_created = 13;
+    GroupInviteCreated group_invite_created = 14;
+    GroupJoinRequestCreated group_join_request_created = 15;
+    NewEventCreated new_event_created = 16;
+    MentionCreated mention_created = 17;
+    NewMessageCreated new_message_created = 18;
+    FollowRequestAccepted follow_request_accepted = 19;
+    FollowRequestRejected follow_request_rejected = 20;
+    GroupInviteAccepted group_invite_accepted = 21;
+    GroupInviteRejected group_invite_rejected = 22;
+    GroupJoinRequestAccepted group_join_request_accepted = 23;
+    GroupJoinRequestRejected group_join_request_rejected = 24;
+    FollowRequestCancelled follow_request_cancelled = 25;
+    GroupJoinRequestCancelled group_join_request_cancelled = 26;
+  }
+}
+
+// Message for notification deletion events
+message NotificationDeletion {
+  int64 notification_id = 1; // ID of the notification that was deleted
+  int64 user_id = 2; // ID of the user who owned the notification
+  google.protobuf.Timestamp deleted_at = 3; // When the notification was deleted
+}

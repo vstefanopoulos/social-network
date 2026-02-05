@@ -1,0 +1,203 @@
+@baseUrl = http://localhost:8081
+@token= "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMSwiZXhwIjoxNzgxNTk2NTk1LCJpYXQiOjE3NjU4NzE3OTV9.t26_Z2z_7PbcCo232SlQIIo1maR7nPJ8o627yybHGkw"
+
+### Register user 1
+POST {{baseUrl}}/register
+Content-Type: application/json
+Host: minio:9000
+
+{
+  "username": "johnfoe",
+  "first_name": "John",
+  "last_name": "Doe",
+  "date_of_birth": "1995-04-12",
+  "about": "Software engineer and coffee lover",
+  "public": true,
+  "email": "john.foe@example.com",
+  "password": "StrongPassword123!"
+}
+
+### Register user 2
+POST {{baseUrl}}/register
+Content-Type: application/json
+Host: minio:9000
+
+{
+  "username": "johndoe",
+  "first_name": "John",
+  "last_name": "Doe",
+  "date_of_birth": "1995-04-12",
+  "about": "Software engineer and coffee lover",
+  "public": true,
+  "email": "john.doe@example.com",
+  "password": "StrongPassword123!"
+}
+
+### LOGOUT
+POST {{baseUrl}}/logout
+Content-Type: application/json
+
+
+### LOGIN DOE
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "identifier": "johndoe",
+  "password": "StrongPassword123!"
+}
+
+### LOGIN FOE
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "identifier": "johnfoe",
+  "password": "StrongPassword123!"
+}
+
+### Send message to Foe
+POST {{baseUrl}}/chat/create-pm
+Content-Type: application/json
+
+{
+  "interlocutor_id":"GWpmbk5ezJn4",
+  "message_body":"this is doe to foe"  
+}
+
+### Send message to Doe
+POST {{baseUrl}}/chat/create-pm
+Content-Type: application/json
+
+{
+  "interlocutor_id":"ZOpnel5aKBzy",
+  "message_body":"this is foe to doe"  
+}
+
+### get conversations
+GET {{baseUrl}}/chat/get-private-conversations?limit=10
+Content-Type: application/json
+
+
+### get messages
+GET {{baseUrl}}/chat/get-pms-paginated?interlocutor-id=ZOpnel5aKBzy&limit=2
+Content-Type: application/json
+
+### get conversation by Id
+GET {{baseUrl}}/chat/get-private-conversation-by-id?conversation-id=2VolejRejNmG&interlocutor-id=GWpmbk5ezJn4
+Content-Type: application/json
+
+### get messages
+GET {{baseUrl}}/chat/get-pms-paginated?interlocutor-id=ZOpnel5aKBzy&limit=10&boundary=0wMvbmOeYAlO&retrieve-users=true&get-previous=true
+Content-Type: application/json
+
+### update last read
+POST {{baseUrl}}/chat/update-last-read-pm
+Content-Type: application/json
+
+{
+  "conversation_id":"2VolejRejNmG",
+  "last_read_message_id":"J4openRe7Az1"
+}
+
+### groups/create
+POST {{baseUrl}}/groups/create
+Content-Type: application/json
+
+{
+  "group_title": "Go Developers Forever!!",
+  "group_description": "A group for people who love writing Go"
+}
+
+### Send group msg
+POST {{baseUrl}}/chat/create-group-message
+
+{
+  "group_id":"2VolejRejNmG",
+  "message_body":"group group group"
+}
+
+### Get Group Conv
+GET {{baseUrl}}/chat/get-group-messages-paginated?group-id=2VolejRejNmG&limit=10
+
+
+### Upload file
+PUT http://minio:9000/uploads-originals/6476b142-e64d-43ed-b6b3-95e80be13ba6?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=minioadmin%2F20251216%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251216T202445Z&X-Amz-Expires=600&X-Amz-SignedHeaders=host&X-Amz-Signature=57b9a69ff965a6bbc565003016f333fc3c4aa994637e3a9451641bac0340158a
+
+Content-Type: application/octet-stream
+Host: minio:9000
+
+<./test.jpg>
+
+### Validate file
+POST {{baseUrl}}/validate-file-upload
+Content-Type: application/json
+
+{
+  "file_id":"BWJxbojagwOL"
+}
+
+
+### 4) USERPROFILE
+
+# use user id from register or login
+POST {{baseUrl}}/profile/GWpmbk5ezJn4 
+
+
+### 5) FOLLOW SUGGESTIONS
+POST {{baseUrl}}/users/follow-suggestions
+
+### 6) USER GROUPS
+POST {{baseUrl}}/groups/user/
+Content-Type: application/json
+
+{
+  "limit": 10,
+  "offset": 0
+}
+
+### 7) CHANGE PASSWORD
+POST {{baseUrl}}/account/update/password
+Content-Type: application/json
+
+{
+  "old_password": "superSecret1234",
+  "new_password": "superSecret123"
+}
+
+### GET POST BY ID
+POST {{baseUrl}}/post/
+Content-Type: application/json
+
+{
+  "entity_id": 1,
+}
+
+### CREATE POST
+POST {{baseUrl}}/posts/create
+Content-Type: application/json
+
+{
+	"body": "What a glorious day",
+	"audience":"everyone"
+	
+}
+
+### DELETE POST
+POST {{baseUrl}}/posts/delete/
+Content-Type: application/json
+
+{
+  "entity_id": ,
+}
+
+###  PUBLICFEED
+
+# use user id from register or login
+POST {{baseUrl}}/public-feed 
+Content-Type: application/json
+Authorization: Bearer {{token}}
+{
+  "limit": 10,
+  "offset": 0
+}

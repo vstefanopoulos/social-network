@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+  labels:
+    stage: config
+data:
+  datasources.yaml: |
+    apiVersion: 1
+
+    datasources:
+      - name: Redis
+        type: redis-datasource
+        access: proxy
+        orgId: 1
+        version: 1
+        url: redis-sentinel.redis.svc.cluster.local:26379
+        jsonData:
+          client: sentinel
+          sentinelName: Test@internal
+          poolSize: 5
+          timeout: 10
+          pingInterval: 0
+          pipelineWindow: 0
+        editable: true
+
+      - name: VictoriaLogs
+        type: victoriametrics-logs-datasource
+        access: proxy
+        url: http://victoria-logs.monitoring.svc.cluster.local:9428
+        jsonData:
+          # Optional multitenancy settings
+          # multitenancyHeaders:
+          #   AccountID: 0
+          #   ProjectID: 0
+
+      - name: VictoriaTraces
+        type: jaeger
+        access: proxy
+        url: http://victoria-traces.monitoring.svc.cluster.local:10428/select/jaeger
+        jsonData:
+          # Optional multitenancy settings
+          # multitenancyHeaders:
+          #   AccountID: 0
+          #   ProjectID: 0
+
+      - name: Posts Database
+        type: postgres
+        url: posts-db-rw.posts.svc.cluster.local
+        user: app
+        secureJsonData:
+          password: $POSTS_DB_PASSWORD
+        jsonData:
+          database: app
+          sslmode: 'require'
+          maxOpenConns: 100
+          maxIdleConns: 100
+          maxIdleConnsAuto: true
+          connMaxLifetime: 14400
+          timescaledb: false
+
+      - name: Users Database
+        type: postgres
+        url: users-db-rw.users.svc.cluster.local
+        user: app
+        secureJsonData:
+          password: $USERS_DB_PASSWORD
+        jsonData:
+          database: app
+          sslmode: 'require'
+          maxOpenConns: 100
+          maxIdleConns: 100
+          maxIdleConnsAuto: true
+          connMaxLifetime: 14400
+          timescaledb: false
+
+      - name: Chat Database
+        type: postgres
+        url: chat-db-rw.chat.svc.cluster.local
+        user: app
+        secureJsonData:
+          password: $CHAT_DB_PASSWORD
+        jsonData:
+          database: app
+          sslmode: 'require'
+          maxOpenConns: 100
+          maxIdleConns: 100
+          maxIdleConnsAuto: true
+          connMaxLifetime: 14400
+          timescaledb: false
+
+      - name: Notifications Database
+        type: postgres
+        url: notifications-db-rw.notifications.svc.cluster.local
+        user: app
+        secureJsonData:
+          password: $NOTIFICATIONS_DB_PASSWORD
+        jsonData:
+          database: app
+          sslmode: 'require'
+          maxOpenConns: 100
+          maxIdleConns: 100
+          maxIdleConnsAuto: true
+          connMaxLifetime: 14400
+          timescaledb: false
+
+      - name: Media Database
+        type: postgres
+        url: media-db-rw.media.svc.cluster.local
+        user: app
+        secureJsonData:
+          password: $MEDIA_DB_PASSWORD
+        jsonData:
+          database: app
+          sslmode: 'require'
+          maxOpenConns: 100
+          maxIdleConns: 100
+          maxIdleConnsAuto: true
+          connMaxLifetime: 14400
+          timescaledb: false
+
+      

@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package common;
+
+option go_package = "social-network/shared/gen-go/common;common";
+
+// Holds basic user info
+message User {
+  int64 user_id = 1;
+  string username = 2;
+  int64 avatar = 3;
+  string avatar_url=4;
+}
+
+// Holds a list of users
+message ListUsers {
+  repeated User users = 1;
+}
+
+// Holds a list of user ids
+message UserIds {
+  repeated int64 values = 1; 
+}

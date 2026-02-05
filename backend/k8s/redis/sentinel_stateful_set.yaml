@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sentinel
+  namespace: redis
+  labels:
+    stage: db2
+spec:
+  serviceName: redis-sentinel
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sentinel
+  template:
+    metadata:
+      labels:
+        app: sentinel
+    spec:
+      initContainers:
+      - name: config
+        image: redis:latest
+        command: ["sh", "-c"]
+        args:
+          - |
+            REDIS_PASSWORD=admin
+            nodes=redis-0.redis,redis-1.redis,redis-2.redis
+            loop=$(echo $nodes | sed -e "s/,/\n/g")
+            
+            for attempt in $(seq 1 1000); do
+                echo "outer loop start"
+                for i in $loop; do
+                    echo "inner loop start"
+                    echo "finding master at $i"
+                    echo "pass: $REDIS_PASSWORD"
+                    MASTER=$(redis-cli --no-auth-warning --raw -h $i -a $REDIS_PASSWORD info replication | awk '{print $1}' | grep master_host: | cut -d ":" -f2)
+                    if [ "$MASTER" = "" ]; then
+                        echo "no master found"
+                    else
+                        echo "found $MASTER"
+                        break 2
+                    fi
+                    echo "finished inner loop"
+                done
+                echo "sleeping for 10"
+                sleep 10
+            done
+            echo "outer loop finished"
+
+            echo "sentinel monitor mymaster $MASTER 6379 2" >> /tmp/master
+            echo "port 26379
+            sentinel resolve-hostnames yes
+            sentinel announce-hostnames yes
+            $(cat /tmp/master)
+            sentinel down-after-milliseconds mymaster 26379
+            sentinel failover-timeout mymaster 60000
+            sentinel parallel-syncs mymaster 1
+            sentinel auth-pass mymaster $REDIS_PASSWORD
+            " > /etc/redis/sentinel.conf
+            echo "script finished"
+        volumeMounts:
+        - name: redis-config
+          mountPath: /etc/redis/
+      containers:
+      - name: sentinel
+        image: redis:7.0.10-alpine
+        command: ["redis-sentinel"]
+        args: ["/etc/redis/sentinel.conf"]
+        ports:
+        - containerPort: 26379
+          name: sentinel
+        volumeMounts:
+        - name: redis-config
+          mountPath: /etc/redis/
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: redis-config
+        emptyDir: {}
+      - name: data
+        emptyDir: {}
+---
+# Headless service for DNS + StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: redis
+  name: redis-sentinel
+  labels:
+    stage: db2
+spec:
+  clusterIP: None
+  ports:
+  - port: 26379
+    targetPort: 26379
+    name: sentinel
+  selector:
+    app: sentinel

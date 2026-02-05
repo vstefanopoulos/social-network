@@ -1,0 +1,35 @@
+#this is a makefile that will be used to build the shared proto packages
+#this file is intented to be called by the top level make file
+#this is a makefile so that we can achieve compatibility for all platforms, mac/linux/windows
+#you need protoc installed before you can generate from the proto files
+
+generate:
+	protoc --proto_path=backend/shared/proto \
+		--go_out=paths=source_relative:backend/shared/gen-go/common \
+		--go-grpc_out=paths=source_relative:backend/shared/gen-go/common \
+		common.proto
+
+	protoc --proto_path=backend/shared/proto \
+		--go_out=paths=source_relative:backend/shared/gen-go/users \
+		--go-grpc_out=paths=source_relative:backend/shared/gen-go/users \
+		users.proto
+
+	protoc --proto_path=backend/shared/proto \
+		--go_out=paths=source_relative:backend/shared/gen-go/posts \
+		--go-grpc_out=paths=source_relative:backend/shared/gen-go/posts \
+		posts.proto
+
+	protoc --proto_path=backend/shared/proto \
+		--go_out=paths=source_relative:backend/shared/gen-go/notifications \
+		--go-grpc_out=paths=source_relative:backend/shared/gen-go/notifications \
+		notifications.proto
+
+	protoc --proto_path=backend/shared/proto \
+		--go_out=paths=source_relative:backend/shared/gen-go/chat \
+		--go-grpc_out=paths=source_relative:backend/shared/gen-go/chat \
+		chat.proto
+
+	protoc --proto_path=backend/shared/proto \
+		--go_out=paths=source_relative:backend/shared/gen-go/media \
+		--go-grpc_out=paths=source_relative:backend/shared/gen-go/media \
+		media.proto

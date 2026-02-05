@@ -1,0 +1,340 @@
+syntax = "proto3";
+
+package posts;
+
+import "common.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "social-network/shared/gen-go/posts;posts";
+
+// PostsService handles post, comment, event, and reaction workflows.
+service PostsService {
+    // Returns a post by id.
+    // Returns permission denied if requester has no right to view requested post.
+    // Includes comment and reaction count, audience and selected audience ids, and whether requester has reacted.
+    // Calls users and media service for post creator info and avatar url.
+  rpc GetPostById (GenericReq) returns (Post);
+
+    // Creates a new post in a user feed or group.
+    // For a group post, returns permission denied if creator is not a member of the group.
+    // Post audience can be set to everyone, followers, selected and group.
+    // If audience is selected, user ids are expected for the post's selected audience.
+  rpc CreatePost (CreatePostReq) returns (IdResp);
+
+    // Deletes a post authored by requester.
+  rpc DeletePost (GenericReq) returns (google.protobuf.Empty);
+
+    // Updates a post authored by requester.
+    // Body, image, audience and selected audience ids (if applicable) can be updated.
+    // All fields must be included in the request even if they remain unchanged, otherwise they'll be deleted.
+  rpc EditPost (EditPostReq) returns (google.protobuf.Empty);
+
+    // Returns the most popular post in the given group.
+    // Popularity is measured as reactions count + comments count.
+    // Includes comment and reaction count, but not whether requester has reacted.
+    // A call to users and media service is made for user information and images.
+  rpc GetMostPopularPostInGroup (SimpleIdReq) returns (Post);
+
+    // Returns a paginated personalized feed for the requester.
+    // This consists of posts intended for followers or selected followers, where requester is in the intended audience.
+    // Every post includes comment count, reaction count and whether requester has reacted.
+    // A call to users and media service is made for user information and images.
+    // Public posts by followers are not included in this feed but rather the public feed.
+  rpc GetPersonalizedFeed (GetPersonalizedFeedReq) returns (ListPosts);
+
+    // Returns a paginated public feed.
+    // This consists of posts intended for everyone, ordered by descending creation date.
+    // Every post includes comment count, reaction count and whether requester has reacted.
+    // A call to users and media service is made for user information and images.
+  rpc GetPublicFeed (GenericPaginatedReq) returns (ListPosts);
+
+    // Returns all of a user's posts visible to the requester, paginated.
+    // Every post includes comment count, reaction count and whether requester has reacted.
+    // A call to users and media service is made for user information and images.
+  rpc GetUserPostsPaginated (GetUserPostsReq) returns (ListPosts);
+
+    // Returns all posts within a group in descending order by date created, paginated.
+    // Returns permission denied if requester is not a member of the group.
+    // Every post includes comment count, reaction count and whether requester has reacted.
+    // A call to users and media service is made for user information and images.
+  rpc GetGroupPostsPaginated (GetGroupPostsReq) returns (ListPosts);
+
+    // Creates a comment on a parent entity (post).
+    // Returns permission denied if requester is not allowed to view parent entity.
+  rpc CreateComment (CreateCommentReq) returns (IdResp);
+
+    // Updates an existing comment by the creator.
+    // Returns permission denied if requester is not allowed to view parent entity.
+    // All fields must be included in the request even if they remain unchanged, otherwise they'll be deleted.
+  rpc EditComment (EditCommentReq) returns (google.protobuf.Empty);
+
+    // Deletes a comment by the creator.
+    // Returns permission denied if requester is not allowed to view parent entity.
+  rpc DeleteComment (GenericReq) returns (google.protobuf.Empty);
+
+    // Returns paginated comments for a parent entity, ordered by descending date created.
+    // Every comment includes reactions count and whether requester has reacted.
+    // A call to users and media service is made for user information and images.
+  rpc GetCommentsByParentId (EntityIdPaginatedReq) returns (ListComments);
+
+  // Returns the parent post's audience 
+  rpc GetPostAudienceForComment (SimpleIdReq) returns (AudienceResp);
+
+    // Creates a group event.
+    // Returns permission denied if requester is not a member of the group.
+  rpc CreateEvent (CreateEventReq) returns (IdResp);
+
+    // Deletes an event by creator.
+    // Returns permission denied if requester is not a member of the group.
+  rpc DeleteEvent (GenericReq) returns (google.protobuf.Empty);
+
+    // Updates an existing event by creator.
+    // Returns permission denied if requester is not a member of the group.
+    // All fields must be included in the request even if they remain unchanged, otherwise they'll be deleted.
+  rpc EditEvent (EditEventReq) returns (google.protobuf.Empty);
+
+    // Returns paginated events of a group ordered by descending creation date.
+    // Each event includes going/not going count, and requester's response, if any.
+    // Returns permission denied if requester is not a member of the group.
+    // A call to users and media service is made for user information and images.
+  rpc GetEventsByGroupId (EntityIdPaginatedReq) returns (ListEvents);
+
+    // Inserts or updates a response (going/not going) to an event.
+    // Returns permission denied if requester is not a member of the group.
+  rpc RespondToEvent (RespondToEventReq) returns (google.protobuf.Empty);
+
+    // Removes the requester's response to an event.
+    // Returns permission denied if requester is not a member of the group.
+  rpc RemoveEventResponse (GenericReq) returns (google.protobuf.Empty);
+
+    // Returns a small set of users that the given user may be interested to follow.
+    //
+    // Suggestions are derived from public ("everyone") posts and include users who:
+    //   - reacted to the user's posts
+    //   - commented on the user's posts
+    //   - reacted to the same posts the user reacted to
+    //   - commented on the same posts the user commented on
+    //
+    // Each interaction type contributes a weighted score, and users are ranked by
+    // total score. Results are randomized among users with similar scores to avoid
+    // deterministic ordering, and the top candidates are returned.
+    // A call to users and media service is made for user information and images.
+  rpc SuggestUsersByPostActivity (SimpleIdReq) returns (common.ListUsers);
+
+    // Toggles or inserts a reaction for the requester on a post/comment.
+    // Returns permission denied if requester is not allowed to view parent entity.
+  rpc ToggleOrInsertReaction (GenericReq) returns (google.protobuf.Empty);
+
+  // Returns a list of users who liked given entity id.
+  // A call to users and media service is made for user information and images.
+  rpc GetWhoLikedEntityId (GenericReq) returns (common.ListUsers);
+}
+
+// COMMON & GENERIC
+
+//generic request message that only includes
+//an entity id (can be post, event, comment id, etc)
+message SimpleIdReq {
+  int64 id = 1;
+}
+
+//generic response message that only includes
+//an entity id (can be post, event, comment id, etc)
+message IdResp{
+  int64 id = 1;
+}
+
+//response message for a post's audience
+message AudienceResp {
+  string audience = 1;
+}
+
+// generic request message that includes
+// the id of the requesting user
+// and an entity id (can be post, comment, event, etc)
+message GenericReq {
+  int64 requester_id = 1;
+  int64 entity_id    = 2;
+}
+
+// generic request message that includes
+// the id of the requesting user
+// an entity id (can be post, comment, event, etc)
+// and pagination information
+message EntityIdPaginatedReq {
+  int64 requester_id = 1;
+  int64 entity_id    = 2;
+  int32 limit        = 3;
+  int32 offset       = 4;
+}
+
+// generic request message that includes
+// the id of the requesting user
+// and pagination information
+message GenericPaginatedReq {
+  int64 requester_id = 1;
+  int32 limit        = 2;
+  int32 offset       = 3;
+}
+
+// POSTS
+
+// Response message that describes a post
+message Post {
+  int64                     post_id                 = 1;
+  string                    post_body               = 2;
+  common.User               user                    = 3; // includes id, username and avatar url
+  int64                     group_id                = 4; //can be 0, meaning the post doesn't belong to a group
+  string                    audience                = 5; // one of "everyone", "followers","selected","group"
+  int32                     comments_count          = 6;
+  int32                     reactions_count         = 7;
+  google.protobuf.Timestamp last_commented_at       = 8;
+  google.protobuf.Timestamp created_at              = 9;
+  google.protobuf.Timestamp updated_at              = 10;
+  bool                      liked_by_user           = 11;
+  int64                     image_id                = 12; //can be 0, meaning no associated image
+  string                    image_url               = 13; // can be an empty string if image_id is 0
+  common.ListUsers          selected_audience_users = 14; //empty unless audience="selected"
+}
+
+// Response message with multiple posts
+message ListPosts {
+  repeated Post posts = 1;
+}
+
+//Request message for creating a post
+message CreatePostReq {
+  int64          creator_id   = 1;
+  string         body         = 2;
+  int64          group_id     = 3; //can be 0 if audience is not "group"
+  string         audience     = 4; // one of "everyone", "followers","selected","group"
+  common.UserIds audience_ids = 5; // empty unless audience="selected"
+  int64          image_id     = 6; //can be 0 if no image
+}
+
+//Request message for editing a post
+message EditPostReq {
+  int64          requester_id = 1;
+  int64          post_id      = 2;
+  string         body         = 3;
+  int64          image_id     = 4; //can be 0 if no image
+  string         audience     = 5; // one of "everyone", "followers","selected","group"
+  common.UserIds audience_ids = 6; //empty unless audience="selected"
+  bool           delete_image = 7; //true if removing preexisting image
+}
+
+//Request message for retrieving a user's posts
+message GetUserPostsReq {
+  int64 creator_id   = 1;
+  int64 requester_id = 2;
+  int32 limit        = 3;
+  int32 offset       = 4;
+}
+
+//Request message for retrieving the personalized feed
+//(posts by followers with restricted visibility that requester is allowed to view)
+message GetPersonalizedFeedReq {
+  int64 requester_id = 1;
+  int32 limit        = 2;
+  int32 offset       = 3;
+}
+
+//Request message for retrieving posts belonging to a group
+message GetGroupPostsReq {
+  int64 requester_id = 1;
+  int64 group_id     = 2;
+  int32 limit        = 3;
+  int32 offset       = 4;
+}
+
+// COMMENTS
+
+//Response message that describes a comment
+message Comment {
+  int64                     comment_id      = 1;
+  int64                     parent_id       = 2;
+  string                    body            = 3;
+  common.User               user            = 4; // includes id, username and avatar url
+  int32                     reactions_count = 5;
+  google.protobuf.Timestamp created_at      = 6;
+  google.protobuf.Timestamp updated_at      = 7;
+  bool                      liked_by_user   = 8;
+  int64                     image_id        = 9; // can be 0 if no image
+  string                    image_url       = 10; // can be empty string if image id=0
+}
+
+//Response message with multiple comments
+message ListComments {
+  repeated Comment comments = 1;
+}
+
+//Request message for creating a comment
+message CreateCommentReq {
+  int64  creator_id = 1;
+  int64  parent_id  = 2;
+  string body       = 3;
+  int64  image_id   = 4; //can be 0 if no image
+}
+
+//Request message for editing a comment
+message EditCommentReq {
+  int64  creator_id   = 1;
+  int64  comment_id   = 2;
+  string body         = 3;
+  int64  image_id     = 4; //can be 0 if no image
+  bool   delete_image = 5; //true if removing preexisting image
+}
+
+// EVENTS
+
+//Response message that describes an event
+message Event {
+  int64                     event_id        = 1;
+  string                    title           = 2;
+  string                    body            = 3;
+  common.User               user            = 4; // includes id, username and avatar url
+  int64                     group_id        = 5;
+  google.protobuf.Timestamp event_date      = 6;
+  int32                     going_count     = 7;
+  int32                     not_going_count = 8;
+  int64                     image_id        = 9; //can be 0 if no image
+  string                    image_url       = 10; //can be empty string if image id=0
+  google.protobuf.Timestamp created_at      = 11;
+  google.protobuf.Timestamp updated_at      = 12;
+  google.protobuf.BoolValue user_response   = 13; //nil for no response, true for going, false for not going
+}
+
+//Response message with multiple events
+message ListEvents {
+  repeated Event events = 1;
+}
+
+//Request message for creating an event
+message CreateEventReq {
+  string                    title      = 1;
+  string                    body       = 2;
+  int64                     creator_id = 3;
+  int64                     group_id   = 4;
+  int64                     image_id   = 5; //can be 0 if no image
+  google.protobuf.Timestamp event_date = 6;
+}
+
+//Request message for editing an event
+message EditEventReq {
+  int64                     event_id     = 1;
+  int64                     requester_id = 2;
+  string                    title        = 3;
+  string                    body         = 4;
+  int64                     image_id     = 5; //can be 0 if no image
+  google.protobuf.Timestamp event_date   = 6;
+  bool                      delete_image = 7; //true if removing preexisting image
+}
+
+//Request message for responding to an event
+message RespondToEventReq {
+  int64 event_id     = 1;
+  int64 responder_id = 2;
+  bool  going        = 3; //true for going, false for not going
+}

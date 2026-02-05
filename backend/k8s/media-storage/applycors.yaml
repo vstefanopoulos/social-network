@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-setup-cors
+  namespace: storage
+  labels:
+    stage: cors
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc
+          env:
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: MINIO_SECRET_KEY
+          volumeMounts:
+            - name: cors
+              mountPath: /config
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              mc alias set minio http://minio.storage.svc.cluster.local:9000 "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY"
+
+              mc cors set minio/uploads-originals /config/cors.xml
+              mc cors set minio/uploads-variants /config/cors.xml
+
+              echo "MinIO CORS configuration applied"
+      volumes:
+        - name: cors
+          configMap:
+            name: minio-cors

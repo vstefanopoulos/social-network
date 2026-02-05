@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: media
+  namespace: media
+  labels:
+    stage: app
+spec:
+  selector:
+    app: media
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+  type: ClusterIP

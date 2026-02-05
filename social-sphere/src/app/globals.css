@@ -1,0 +1,515 @@
+@import "tailwindcss";
+
+
+:root {
+  --accent: #a855f7;
+  --accent-hover: #9333ea; 
+  --foreground: #0a0a0a;
+  --muted: #6b7280;
+  --background: #ffffff;
+  --border: #e5e5e5; 
+ } 
+
+.dark {
+  --accent: #a855f7;
+  --accent-hover: #9333ea;
+  --foreground: #f5f5f5;
+  --muted: #9ca3af;
+  --background: #0a0a0a;
+  --border: #262626;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  ::selection {
+    @apply bg-(--accent) text-foreground;
+  }
+
+  ::-moz-selection {
+    @apply bg-(--accent) text-foreground;
+  }
+}
+
+/* ======================
+   CUSTOM SCROLLBARS
+   ====================== */
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--muted);
+}
+
+/* Scrollbar corner (where horizontal and vertical meet) */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Thin scrollbar variant for nested containers */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 40%, transparent) transparent;
+}
+
+@media (hover: hover) {
+  *:hover {
+    scrollbar-color: color-mix(in srgb, var(--muted) 60%, transparent) transparent;
+  }
+}
+
+/* ======================
+   FORM ELEMENTS
+   ====================== */
+
+.form-input {
+  @apply text-sm px-4 rounded-3xl border border-(--border) hover:border-foreground focus:border-(--accent) py-3 w-full bg-(--muted)/7 text-foreground placeholder:text-(--muted)/50 focus:outline-none transition-colors;
+}
+
+.form-input:focus {
+  @apply outline-none;
+}
+
+.form-label {
+  @apply block text-base font-light text-(--muted) mb-2;
+}
+
+.form-error {
+  @apply text-red-600 text-sm mt-2;
+}
+
+.form-error-box {
+  @apply text-red-600 text-sm;
+}
+
+.form-toggle-btn {
+  @apply absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:text-(--accent) focus:text-(--accent) focus:outline-none;
+}
+
+.form-toggle-btn:hover {
+  color: var(--accent);
+}
+
+/* Avatar Upload */
+.avatar-container {
+  @apply relative w-24 h-24 rounded-full border-2 cursor-pointer overflow-hidden flex items-center justify-center transition-colors;
+  border-color: var(--border);
+  background-color: var(--background);
+}
+
+.avatar-container:hover {
+  border-color: var(--foreground);
+}
+
+.avatar-image {
+  @apply w-full h-full object-cover;
+}
+
+.avatar-input {
+  @apply absolute inset-0 w-full h-full opacity-0 cursor-pointer;
+}
+
+.avatar-remove-btn {
+  @apply absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors z-10;
+}
+
+.avatar-label {
+  @apply text-sm mt-2;
+  color: var(--muted);
+}
+
+/* ======================
+   BUTTONS
+   ====================== */
+
+.btn {
+  @apply px-3 py-2 text-base font-medium transition-colors cursor-pointer border-0;
+}
+
+.btn-primary {
+  @apply bg-(--accent) text-white hover:bg-(--accent-hover) rounded-full focus:outline-none focus:bg-(--accent-hover) text-sm;
+}
+
+.btn-secondary {
+  @apply bg-white text-foreground border-2 border-foreground hover:bg-foreground hover:text-white;
+}
+
+/* ======================
+   LINKS
+   ====================== */
+
+.link-primary {
+  @apply font-medium text-foreground hover:underline underline-offset-4 focus:underline focus:outline-none hover:text-(--accent-hover);
+}
+
+.link-muted {
+  @apply text-(--muted) hover:text-foreground transition-colors;
+}
+
+/* ======================
+   TYPOGRAPHY
+   ====================== */
+
+.heading-xl {
+  @apply text-7xl md:text-9xl font-bold tracking-tighter leading-[0.9] text-foreground;
+}
+
+.heading-lg {
+  @apply text-5xl md:text-6xl font-bold tracking-tight text-foreground;
+}
+
+.heading-md {
+  @apply text-4xl font-bold tracking-tight text-foreground;
+}
+
+.heading-sm {
+  @apply text-3xl font-bold text-foreground;
+}
+
+.text-accent {
+  @apply text-(--accent);
+}
+
+.text-label {
+  @apply text-xs font-medium uppercase tracking-widest text-(--accent);
+}
+
+.text-muted {
+  @apply text-(--muted);
+}
+
+.link-accent {
+  @apply font-medium text-(--accent) hover:text-(--accent-hover) transition-colors;
+}
+
+.text-image-fill {
+  @apply inline-block;
+  background-image: url(/fill.png);
+  background-size: 180% 180%;
+  background-position: center center;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+
+  animation: wander 50s linear infinite;
+}
+
+@keyframes wander {
+  0% {
+    background-position: 50% 50%;
+  }
+
+  10% {
+    background-position: 70% 20%;
+  }
+
+  20% {
+    background-position: 30% 80%;
+  }
+
+  30% {
+    background-position: 90% 40%;
+  }
+
+  40% {
+    background-position: 10% 60%;
+  }
+
+  50% {
+    background-position: 80% 90%;
+  }
+
+  60% {
+    background-position: 20% 30%;
+  }
+
+  70% {
+    background-position: 60% 10%;
+  }
+
+  80% {
+    background-position: 40% 70%;
+  }
+
+  90% {
+    background-position: 95% 50%;
+  }
+
+  100% {
+    background-position: 50% 50%;
+  }
+}
+
+
+
+/* ======================
+   LAYOUT
+   ====================== */
+
+.page-container {
+  @apply bg-background;
+}
+
+.section-border {
+  @apply border-b border-(--border);
+}
+
+.feature-desc {
+  @apply text-lg text-(--muted) leading-relaxed;
+}
+
+.section-divider {
+  @apply w-full max-w-[1000px] mx-auto h-px border-0 my-0;
+  background: linear-gradient(to right, transparent, var(--muted), transparent);
+}
+
+.prof-divider {
+  @apply w-full max-w-screen mx-auto h-px border-0 my-0;
+  background: linear-gradient(to right, transparent, var(--muted), transparent);
+}
+
+/* Footer */
+.footer {
+  @apply py-12 mt-auto border-t border-black/5 dark:border-white/5;
+}
+
+.footer-content {
+  @apply flex flex-col md:flex-row justify-between items-center gap-6 text-sm text-(--muted) max-w-[1000px] mx-auto px-6 w-full;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 12px var(--accent));
+    transform: scale(0.9);
+  }
+  50% {
+    filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 4px var(--accent));
+    transform: scale(1.15);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 0.8s ease-in-out infinite;
+}
+
+@keyframes pulseGlowForeground {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px var(--foreground)) drop-shadow(0 0 8px var(--foreground));
+    transform: scale(0.9);
+  }
+  50% {
+    filter: drop-shadow(0 0 1px var(--foreground)) drop-shadow(0 0 2px var(--foreground));
+    transform: scale(1.15);
+  }
+}
+
+.animate-pulse-glow-foreground {
+  animation: pulseGlowForeground 0.8s ease-in-out infinite;
+}
+
+.delay-100 {
+  animation-delay: 100ms;
+}
+
+.delay-200 {
+  animation-delay: 200ms;
+}
+
+.delay-300 {
+  animation-delay: 300ms;
+}
+
+/* Forms */
+.form-group {
+  @apply space-y-2;
+}
+
+
+.form-link {
+  @apply text-xs text-(--muted) hover:text-foreground transition-colors;
+}
+
+/* Auth Pages */
+.auth-card {
+  @apply w-full max-w-md px-6 py-12 flex flex-col items-center;
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+.auth-title {
+  @apply text-3xl font-bold tracking-tight mb-2;
+}
+
+.auth-subtitle {
+  @apply text-(--muted);
+}
+
+.auth-footer {
+  @apply mt-8 text-center text-sm text-(--muted);
+}
+
+
+/* Avatar Upload */
+.avatar-container {
+  @apply relative w-24 h-24 rounded-full bg-(--muted)/10 flex items-center justify-center mb-2 border border-(--muted)/20;
+}
+
+.avatar-image {
+  @apply w-full h-full object-cover rounded-full;
+}
+
+/* .avatar-input {
+  @apply absolute inset-0 opacity-0 cursor-pointer z-10;
+} */
+
+.avatar-remove-btn {
+  @apply absolute -top-1 -right-1 bg-background text-(--muted) hover:text-red-500 rounded-full p-1 border border-(--muted)/20 shadow-sm z-20 transition-colors;
+}
+
+.avatar-label {
+  @apply text-xs text-(--muted);
+}
+
+/* Feed Posts */
+.feed-container {
+  @apply w-full py-8;
+}
+
+.feed-header {
+  @apply mb-8 px-4;
+}
+
+.feed-title {
+  @apply text-3xl font-bold tracking-tight;
+}
+
+.feed-subtitle {
+  @apply text-(--muted) mt-1;
+}
+
+.post-card {
+  @apply flex gap-4 px-4 py-6 border-b border-(--muted)/10 hover:bg-(--muted)/5 transition-colors cursor-pointer;
+}
+
+.post-avatar-container {
+  @apply shrink-0;
+}
+
+.post-avatar {
+  @apply w-12 h-12 rounded-full bg-linear-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 object-cover;
+}
+
+.post-content-container {
+  @apply flex-1 min-w-0;
+}
+
+.post-header {
+  @apply flex items-baseline justify-between mb-1;
+}
+
+.post-username {
+  @apply font-semibold text-foreground hover:underline decoration-2 underline-offset-2;
+}
+
+.post-timestamp {
+  @apply text-xs text-(--muted) font-medium;
+}
+
+.post-text {
+  @apply text-(--foreground)/90 leading-relaxed mb-3 text-[15px];
+}
+
+.post-actions {
+  @apply flex items-center gap-6;
+}
+
+.action-btn {
+  @apply flex items-center gap-0.5 text-(--muted) transition-colors;
+}
+
+.action-btn-heart {
+  @apply hover:text-red-500;
+}
+
+.action-btn-comment {
+  @apply hover:text-foreground;
+}
+
+.icon-heart {
+  @apply w-5 h-5 group-hover/heart:fill-current group-hover/heart:scale-110 transition-transform;
+}
+
+.icon-comment {
+  @apply w-5 h-5 group-hover/comment:stroke-2;
+}

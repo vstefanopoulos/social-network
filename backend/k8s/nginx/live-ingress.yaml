@@ -1,0 +1,25 @@
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: live-ingress
+#   namespace: ingress-nginx
+#   labels:
+#     stage: ingress
+#   annotations:
+#     nginx.ingress.kubernetes.io/websocket-services: "live"
+#     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+#     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+#     nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+# spec:
+#   ingressClassName: nginx
+#   rules:
+#     - host: localhost
+#       http:
+#         paths:
+#           - path: /live
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: live
+#                 port:
+#                   number: 8082

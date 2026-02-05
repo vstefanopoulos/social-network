@@ -1,0 +1,11 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: users-db
+  namespace: users
+  labels:
+    stage: db1
+spec:
+  instances: 2
+  storage:
+    size: 1Gi

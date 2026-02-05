@@ -1,0 +1,618 @@
+version: "3.5"
+
+# Redundand on Kube deployment
+x-env: &common-env
+  MIGRATE_PATH: ./migrations
+  USERS_GRPC_ADDR: users:50051
+  POSTS_GRPC_ADDR: posts:50051
+  CHAT_GRPC_ADDR: chat:50051
+  NOTIFICATIONS_GRPC_ADDR: notifications:50051
+  MEDIA_GRPC_ADDR: media:50051
+  GRPC_SERVER_PORT: :50051
+  OTEL_EXPORTER_OTLP_INSECURE: true
+  OTEL_EXPORTER_OTLP_ENDPOINT: alloy:4317
+  SENTINEL_ADDRS: "sentinel-1:26379"
+  REDIS_MASTER_SET: mymaster
+  NATS_CLUSTER: "nats://ruser:T0pS3cr3t@nats-1:4222,nats://ruser:T0pS3cr3t@nats-2:4223"
+
+services:
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # USERS SERVICE + DATABASE: handles everything users related
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  users:
+    networks:
+      - social-network
+    container_name: users
+    build:
+      # Use repo root as build context so the Dockerfile can COPY files from
+      # the repository root (shared/ and go.mod/go.sum). The Dockerfile path
+      # is provided relative to the context.
+      context: backend/.
+      dockerfile: services/users/Dockerfile
+    environment:
+      <<: *common-env
+      #fix this
+      DATABASE_URL: postgres://postgres:secret@users-db:5432/social_users?sslmode=disable
+       # Explicit DB_* variables for clarity and local tooling
+      DB_HOST: users-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: secret
+      DB_NAME: social_users
+      SSL_MODE: disable
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=users,service.namespace=social-network,deployment.environment=dev"
+    depends_on:
+      users-db:
+        condition: service_healthy
+    ports:
+      - "50051:50051" # If the users service exposes an HTTP API
+
+
+  users-db:
+    networks:
+      - social-network
+    image: postgres:16
+    container_name: users-db
+    environment:
+      <<: *common-env
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: social_users
+    ports:
+      - "5433:5432"
+    volumes:
+      - users-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d social_users"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # POSTS SERVICE + DATABASE: handles everything posts related
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  posts:
+    networks:
+      - social-network
+    container_name: posts
+    build:
+      context: backend/.
+      dockerfile: services/posts/Dockerfile
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgres://postgres:secret@posts-db:5432/social_posts?sslmode=disable
+      # Explicit DB_* variables for clarity and local tooling
+      DB_HOST: posts-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: secret
+      DB_NAME: social_posts
+      SSL_MODE: disable
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=posts,service.namespace=social-network,deployment.environment=dev"
+    depends_on:
+      posts-db:
+        condition: service_healthy
+    ports:
+      - "50052:50051" 
+
+
+  posts-db:
+    networks:
+      - social-network
+    image: postgres:16
+    container_name: posts-db
+    environment:
+      <<: *common-env
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: social_posts
+    ports:
+      - "5434:5432"
+    volumes:
+      - posts-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d social_posts"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # CHAT SERVICE + DATABASE: handles real-time messaging between users
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  chat:
+    networks:
+      - social-network
+    build:
+      context: backend/.
+      dockerfile: services/chat/Dockerfile
+    container_name: chat
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgres://postgres:secret@chat-db:5432/social_chat?sslmode=disable
+       # Explicit DB_* variables for clarity and local tooling
+      DB_HOST: chat-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: secret
+      DB_NAME: social_chat
+      SSL_MODE: disable
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=chat,service.namespace=social-network,deployment.environment=dev"
+    depends_on:
+      chat-db:
+        condition: service_healthy
+    ports:
+      - "50053:50051" 
+
+
+  chat-db: 
+    networks:
+      - social-network
+    image: postgres:16
+    container_name: chat-db
+    environment:
+      <<: *common-env
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: social_chat
+    ports:
+      - "5435:5432"
+    volumes:
+      - chat-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d social_chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # NOTIFICATIONS SERVICE + DATABASE: forwards and keeps track of user notifications
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  notifications:
+    networks:
+      - social-network
+    container_name: notifications
+    build:
+      context: backend/.
+      dockerfile: services/notifications/Dockerfile
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgres://postgres:secret@notifications-db:5432/social_notifications?sslmode=disable
+       # Explicit DB_* variables for clarity and local tooling
+      DB_HOST: notifications-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: secret
+      DB_NAME: social_notifications
+      SSL_MODE: disable
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=notifications,service.namespace=social-network,deployment.environment=dev"
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+    ports:
+      - "50054:50051" 
+
+  notifications-db:
+    networks:
+      - social-network
+    image: postgres:16
+    container_name: notifications-db
+    environment:
+      <<: *common-env
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: social_notifications
+    ports:
+      - "5436:5432"
+    volumes:
+      - notifications-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d social_notifications"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # MEDIA SERVICE + DATABASE: handles media uploads, storage, and retrieval
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  media:
+    networks:
+      - social-network
+    build:
+      context: backend/.
+      dockerfile: services/media/Dockerfile
+    container_name: media
+    environment:
+      <<: *common-env
+      GRPC_SERVER_PORT: ":50051"
+      DATABASE_URL: postgres://postgres:secret@media-db:5432/social_media?sslmode=disable
+      DB_HOST: media-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: secret
+      DB_NAME: social_media
+      SSL_MODE: disable 
+      MINIO_ENDPOINT: minio:9000
+      MINIO_PUBLIC_ENDPOINT: localhost:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=media,service.namespace=social-network,deployment.environment=dev"
+    depends_on:
+      media-db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "50055:50051" 
+
+  media-db:
+    networks:
+      - social-network
+    image: postgres:16
+    container_name: media-db
+    environment:
+      <<: *common-env
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: social_media
+    ports:
+      - "5437:5432"
+    volumes:
+      - media-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d social_media"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+  
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # MINIO: object storage service, used by the media service to store media files and generate URLs
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  minio:
+    networks:
+      - social-network
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # REDIS: in-memory data structure store, used as a database, cache, and message broker
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  redis-master:
+    image: redis:8.4.0-alpine
+    command: ["redis-server", "--port", "6379", "--bind", "0.0.0.0", "--save", ""]
+    networks:
+      - social-network
+      - redis
+    ports:
+      - "6379:6379"
+
+  sentinel-1:
+    image: redis:8.4.0-alpine
+    command: >
+      sh -c "
+      echo 'port 26379' > /tmp/sentinel.conf &&
+      echo 'sentinel monitor mymaster redis-master 6379 1' >> /tmp/sentinel.conf &&
+      echo 'sentinel down-after-milliseconds mymaster 5000' >> /tmp/sentinel.conf &&
+      echo 'sentinel failover-timeout mymaster 10000' >> /tmp/sentinel.conf &&
+      echo 'sentinel parallel-syncs mymaster 1' >> /tmp/sentinel.conf &&
+      echo 'bind 0.0.0.0' >> /tmp/sentinel.conf &&
+      redis-sentinel /tmp/sentinel.conf
+      sentinel resolve-hostnames yes
+      "
+    depends_on:
+      - redis-master
+    networks:
+      - social-network
+      - redis
+    ports:
+      - "26379:26379"
+
+
+
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # SOCIAL-SPHERE FRONTEND BACKEND: Next.js frontend service, it serves the web application and communicates with the API Gateway
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  social-sphere:
+    networks:
+      - social-network
+    build:
+      context: social-sphere/.
+      dockerfile: Dockerfile
+    container_name: social-sphere
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - GATEWAY=http://api-gateway:8081
+      - LIVE=ws://localhost:8082
+
+    restart: unless-stopped
+
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # VICTORIA LOGS SERVICE: for log aggregation, storage and querying
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  victoria-traces:
+    networks:
+        - social-network
+    image: docker.io/victoriametrics/victoria-traces:latest
+    ports:
+      - "10428:10428"
+    volumes:
+      - victoria-traces-data:/victoria-traces-data
+    command:
+      - -storageDataPath=/victoria-logs-data 
+      # Typo here ?       ^^^^^^^^^^^^^^^^^^
+    restart: unless-stopped
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # VICTORIA TRACES SERVICE: for trace aggregation, storage and querying
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  victoria-logs:
+    networks:
+        - social-network
+    image: victoriametrics/victoria-logs:v1.44.0
+    ports:
+      - "9428:9428"
+    volumes:
+      - victoria-logs-data:/victoria-logs-data
+    command:
+      - -storageDataPath=/victoria-logs-data
+    restart: unless-stopped
+
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # GRAFANA: visualization and analytics platform for monitoring data
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    networks:
+      - social-network
+    environment:
+      GF_LOG_LEVEL: debug
+      GF_SERVER_ROOT_URL: "http://my.grafana.server/"
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./backend/services/monitoring/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./backend/services/monitoring/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - grafana-storage:/var/lib/grafana
+    restart: unless-stopped
+
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # GRAFANA ALLOY: It collects, processes, and exports telemetry data (traces, metrics, logs) to Victoria Logs, Metrics and Traces
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  alloy:
+    networks:
+      - social-network
+    image: grafana/alloy:latest
+    container_name: alloy
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "12345:12345" # HTTP server (if you want the web API)
+    volumes:
+      - ./backend/services/monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+    command:
+      - "run"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "--storage.path=/var/lib/alloy/data"
+      - "/etc/alloy/config.alloy"
+
+
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # LIVE: the main entry point for clients, it routes requests to the appropriate services
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  live:
+    networks:
+      - social-network
+    build:
+      context: backend/.
+      dockerfile: services/live/Dockerfile
+    container_name: live
+    environment:
+      <<: *common-env
+      ENC_KEY: a2F0LWFsZXgtdmFnLXlwYXQtc3RhbS16b25lMDEtZ28=
+      JWT_KEY: a2F0LWFsZXgtdmFnLXlwYXQtc3RhbS16b25lMDEtZ28=
+      PASSWORD_SECRET: a2F0LWFsZXgtdmFnLXlwYXQtc3RhbS16b25lMDEtZ28= 
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=live,service.namespace=social-network,deployment.environment=dev"
+      
+    ports:
+      - "8082:8082"
+    depends_on:
+      sentinel-1:
+        condition: service_started
+
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # KAFKA: Message streaming platform for reliably pushing notifications to the notifications service
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  kafka:
+    networks:
+      - social-network
+    image: apache/kafka-native:4.1.1
+    container_name: kafka
+    ports:
+      - "9092:9092"   # host access
+    environment:
+      # Kafka listeners
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:29093,PLAINTEXT_HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # Node / controller configuration
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+
+      # Cluster and replication
+      CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+
+    volumes:
+      - ./backend/services/kafka/config:/mnt/shared/config
+
+
+
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # NATS: Lightweight, high-performance messaging system for inter-service communication. Used to find the live service replica that contains the users websocket
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  nats-1:
+    image: nats
+    command: ["-c", "/etc/nats/nats.conf"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - ./backend/services/nats/nats.conf:/etc/nats/nats.conf:ro
+    networks: ["social-network"]
+
+  nats-2:
+    image: nats
+    command: ["-c", "/etc/nats/nats.conf"]
+    volumes:
+      - ./backend/services/nats/nats.conf:/etc/nats/nats.conf:ro
+    depends_on: ["nats-1"]
+    networks: ["social-network"]
+    ports:
+      - "4223:4222"
+      - "8223:8222"
+
+  nats-3:
+    image: nats
+    command: ["-c", "/etc/nats/nats.conf"]
+    volumes:
+      - ./backend/services/nats/nats.conf:/etc/nats/nats.conf:ro
+    depends_on: ["nats-1"]
+    networks: ["social-network"]
+    ports:
+      - "4224:4222"
+      - "8224:8222"
+
+
+
+  #
+  #
+  #
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  # API - GATEWAY: the main entry point for clients, it routes requests to the appropriate services
+  # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  api-gateway:
+    networks:
+      - social-network
+    build:
+      context: backend/.
+      dockerfile: services/gateway/Dockerfile
+    container_name: api-gateway
+    environment:
+      <<: *common-env
+      ENC_KEY: a2F0LWFsZXgtdmFnLXlwYXQtc3RhbS16b25lMDEtZ28=
+      JWT_KEY: a2F0LWFsZXgtdmFnLXlwYXQtc3RhbS16b25lMDEtZ28=
+      PASSWORD_SECRET: a2F0LWFsZXgtdmFnLXlwYXQtc3RhbS16b25lMDEtZ28= 
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=api-gateway,service.namespace=social-network,deployment.environment=dev"
+      
+    ports:
+      - "8081:8081"
+    depends_on:
+      sentinel-1:
+        condition: service_started
+
+  
+
+
+
+
+volumes:
+  users-db-data:
+  posts-db-data:
+  chat-db-data:
+  notifications-db-data:
+  media-db-data:
+  minio_data:
+  victoria-logs-data:
+  victoria-traces-data:
+  alloy-data:
+  grafana-storage: {}
+
+      
+networks:
+  social-network:
+    external: true
+    name: "social-network"
+
+  redis:
+    driver: bridge

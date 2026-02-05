@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: api-gateway
+  labels:
+    stage: app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: api-gateway
+          image: social-network/api-gateway:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          env:
+            - name: ENC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-secret
+                  key: ENC_KEY
+            - name: JWT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-secret
+                  key: JWT_KEY
+            - name: SENTINEL_ADDRS
+              value: sentinel-0.redis-sentinel.redis.svc.cluster.local:26379,sentinel-1.redis-sentinel.redis.svc.cluster.local:26379,sentinel-2.redis-sentinel.redis.svc.cluster.local:26379
+            - name: REDIS_PASSOWRD
+              value: admin
+            - name: REDIS_MASTER_SET
+              value: "mymaster"
+            - name: TELEMETRY_COLLECTOR_ADDR
+              value: "localhost:4317"
+
+            - name: USERS_GRPC_ADDR
+              value: "users.users.svc.cluster.local:50051"
+            - name: POSTS_GRPC_ADDR
+              value: "posts.posts.svc.cluster.local:50051"
+            - name: CHAT_GRPC_ADDR
+              value: "chat.chat.svc.cluster.local:50051"
+            - name: NOTIFICATIONS_GRPC_ADDR
+              value: "notifications.notifications.svc.cluster.local:50051"
+            - name: MEDIA_GRPC_ADDR
+              value: "media.media.svc.cluster.local:50051"
+
+            - name: SHUTDOWN_TIMEOUT_SECONDS
+              value: "5"
+            - name: ENABLE_DEBUG_LOGS
+              value: "true"
+            - name: ENABLE_SIMPLE_PRINT
+              value: "true"
+            - name: KAFKA_BROKERS
+              value: "kafka.kafka.svc.cluster.local:29092"
+            - name: NATS_CLUSTER
+              value: "nats://ruser:T0pS3cr3t@nats-client.messaging.svc.cluster.local:4222"
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "alloy.monitoring.svc.cluster.local:4317"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.name=gateway,service.namespace=social-network,deployment.environment=dev"

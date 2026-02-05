@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: victoria-logs
+  namespace: monitoring
+  labels:
+    stage: config
+spec:
+  serviceName: "victoria-logs"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: victoria-logs
+  template:
+    metadata:
+      labels:
+        app: victoria-logs
+    spec:
+      containers:
+        - name: victoria-logs
+          image: victoriametrics/victoria-logs:v1.44.0
+          args:
+            - -storageDataPath=/victoria-logs-data
+          ports:
+            - containerPort: 9428
+          volumeMounts:
+            - name: victoria-logs-data
+              mountPath: /victoria-logs-data
+  volumeClaimTemplates:
+    - metadata:
+        name: victoria-logs-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
