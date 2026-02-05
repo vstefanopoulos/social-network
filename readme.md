@@ -1,4 +1,4 @@
-# Go Microservices Cloud-Native Project
+# Social Network
 
 ## Overview
 
@@ -68,13 +68,33 @@ The system was developed as part of a **Zone01 team project** with a focus on ro
 
 ### Deployment Steps
 
-1. Set environment variables for secrets (K8s secrets recommended)
-2. Deploy PostgreSQL using CNPG operator
-3. Deploy Redis with Sentinel replication
-4. Build Docker images for services
-5. Apply Kubernetes manifests for all services and observability
-6. Verify dashboards in Grafana
-7. Run integration tests via gRPC clients
+1. Install cloud native operator
+2. Build docker base for golang and cloudnative image for Postgress
+3. Build Docker images for services
+4. Load images to K8s cluster (not needed on Colima)
+5. Run deployment in this order using make commands.
+	- make apply-kafka (need to first create name space if doing manual run. Name space creation is included in make commands)
+	- make apply-namespace
+	- make apply-pvc
+	- make apply-configs
+	- make apply-monitoring
+	- make apply-db1  
+    - make apply-db2
+        - **Wait for db pods and all replicas to run**
+    - make run-migrations 
+	- make apply-apps   
+        - **Wait for storage pod to run**
+    - make apply-cors
+    - make port-forward
+
+    *Make commands run `kubectl apply -f` recursively on K8s dir for each stage selector*
+    
+    #### Ports exposed
+    - Frontend -> localhost:3000 
+    - Grafana -> localhost:3001
+        - user: social
+        - password: wearecool
+    - victoria logs -> localhost:9428
 
 ---
 
